@@ -310,6 +310,107 @@ function hasComparisonTone(text) {
   return markers.some((marker) => source.includes(marker));
 }
 
+function hasTimoHumorHook(text, language) {
+  const source = toCleanString(text).toLowerCase();
+  if (!source) return false;
+
+  const hooks =
+    language === "en"
+      ? [
+          "looks like",
+          "feels like",
+          "as if",
+          "you would think",
+          "almost like",
+          "not even",
+          "more like"
+        ]
+      : [
+          "alsof",
+          "ziet eruit",
+          "lijkt",
+          "je zou denken",
+          "nog net niet",
+          "lijkt meer op",
+          "het oogt alsof"
+        ];
+
+  return hooks.some((hook) => source.includes(hook));
+}
+
+function isTooSeriousTimoLine(text, language) {
+  const source = toCleanString(text).toLowerCase();
+  if (!source) return true;
+
+  const formalMarkers =
+    language === "en"
+      ? [
+          "composition",
+          "lighting hierarchy",
+          "subject separation",
+          "framing choices",
+          "color palette",
+          "intentionality",
+          "cinematography"
+        ]
+      : [
+          "compositie",
+          "belichting",
+          "achtergrond",
+          "kadrering",
+          "lichtkwaliteit",
+          "intentionaliteit",
+          "subject separation"
+        ];
+
+  const dumbHumorMarkers =
+    language === "en"
+      ? [
+          "looks like",
+          "as if",
+          "this is just",
+          "more like",
+          "dead",
+          "mess",
+          "ridiculous",
+          "awkward"
+        ]
+      : [
+          "alsof",
+          "ziet eruit",
+          "dit is gewoon",
+          "lijkt meer op",
+          "kut",
+          "slap",
+          "halfbakken",
+          "lompe"
+        ];
+
+  const formalHits = formalMarkers.filter((m) => source.includes(m)).length;
+  const humorHits = dumbHumorMarkers.filter((m) => source.includes(m)).length;
+
+  return formalHits >= 2 && humorHits === 0;
+}
+
+function isTooSeriousTimoBullet(text, language) {
+  const source = toCleanString(text).toLowerCase();
+  if (!source) return true;
+
+  const seriousWords =
+    language === "en"
+      ? ["composition", "lighting", "background", "framing", "subject", "technical", "cinematography"]
+      : ["compositie", "belichting", "achtergrond", "kadrering", "onderwerp", "technisch", "cinematografie"];
+
+  const roastWords =
+    language === "en"
+      ? ["looks like", "as if", "mess", "awkward", "dead", "weird", "junk", "ridiculous"]
+      : ["alsof", "ziet eruit", "rommel", "slap", "kut", "raar", "troep", "halfbakken"];
+
+  const seriousHits = seriousWords.filter((w) => source.includes(w)).length;
+  const roastHits = roastWords.filter((w) => source.includes(w)).length;
+  return seriousHits >= 2 && roastHits === 0;
+}
+
 function hasTimoFlavor(text, language) {
   const source = toCleanString(text).toLowerCase();
   if (!source) return false;
@@ -528,7 +629,9 @@ function failsOriginalityCheck(line, language, roastLevel) {
 
   if (roastLevel === "timo") {
     if (!hasComparisonTone(source)) return "no_comparison_structure";
+    if (!hasTimoHumorHook(source, language)) return "missing_humor_hook";
     if (!hasVisualAnchor(source, language)) return "not_visual_specific";
+    if (isTooSeriousTimoLine(source, language)) return "too_serious_timo";
   }
 
   const normalized = normalizePhrase(source);
@@ -548,16 +651,16 @@ function buildForcedUniqueOneLiner(language, roastLevel, seed = 0) {
   const tonePool =
     language === "en"
       ? [
-          "this frame trips over its own ambition.",
-          "this shot confuses noise with intention.",
-          "the joke is that the image takes itself seriously.",
-          "the style talks loud while the frame says nothing."
+          "this thing is basically bad decisions in costume.",
+          "the frame acts deep while doing absolutely nothing right.",
+          "the joke is that this image thinks it is serious cinema.",
+          "this is just chaos with confidence."
         ]
       : [
-          "dit frame struikelt over z'n eigen ambitie.",
-          "dit shot verwart ruis met intentie.",
-          "de grap is dat het beeld zichzelf veel te serieus neemt.",
-          "de stijl roept hard terwijl het frame niks zegt."
+          "dit ding is gewoon slechte keuzes in vermomming.",
+          "het frame doet diep maar bakt er niks van.",
+          "de grap is dat dit beeld zichzelf bloedserieus neemt.",
+          "dit is gewoon chaos met zelfvertrouwen."
         ];
 
   const base = (seed + Date.now()) % 997;
@@ -595,6 +698,14 @@ function buildRetryConstraint({ language, reason, attempt, historyCount = 0 }) {
     too_long: language === "en" ? "One-liner is too long; keep max 2 short sentences." : "De one-liner is te lang; max 2 korte zinnen.",
     no_comparison_structure: language === "en" ? "One-liner misses a sharp comparison structure." : "De one-liner mist een scherpe vergelijkingsstructuur.",
     not_visual_specific: language === "en" ? "One-liner is not tied to visible frame details." : "De one-liner is niet gekoppeld aan zichtbare details.",
+    missing_humor_hook:
+      language === "en"
+        ? "One-liner lacks a dumb comparison hook (looks like/as if/you would think)."
+        : "De one-liner mist een lompe vergelijkingshaak (alsof/ziet eruit/lijkt/je zou denken).",
+    too_serious_timo:
+      language === "en"
+        ? "One-liner sounds like serious film feedback. Make it dumber, flatter, rougher, and funnier."
+        : "De one-liner klinkt als serieuze filmfeedback. Maak hem dommer, flauwer, lomper en grappiger.",
     overused_generic_terms: language === "en" ? "Do not lean on generic arthouse/student/blur templates." : "Leun niet op generieke arthouse/student/blur templates.",
     blocked_or_near_blocked: language === "en" ? "One-liner matches forbidden phrase patterns." : "De one-liner matcht verboden zins-patronen.",
     too_similar_to_recent_history:
@@ -704,23 +815,29 @@ function getLevelInstruction(roastLevel, language) {
     timo: {
       nl: [
         "TIMO VAN LIEROP MODE: lomp, hard, grappig-afbrandend en meedogenloos raak.",
-        "Niet klinken als filmacademie-feedback, wel als harde bank-roast met korte klappen.",
-        "One-liner: max 1-2 zinnen, hardste en grappigste punchline van de output.",
+        "Niet klinken als filmacademie-feedback, maar als iemand op de bank die hardop domme kutgrappen maakt over de still.",
+        "One-liner: max 1-2 zinnen, eerst grap, daarna pas inhoud.",
+        "Liever flauw en hard dan slim en netjes.",
+        "Gebruik korte klappen, inkoppertjes en lompe observaties.",
         "Use voorbeeldzinnen alleen als energie; nooit copy, nooit parafrase.",
         "Bedenk intern eerst 8 verschillende one-liners en kies dan de meest originele.",
         "One-liner moet frame-specifiek zijn op zichtbare details: scherpte, achtergrond, pose, expressie, props, lichtbron, kadering, kleur.",
         "Varieer openingsvormen; herhaal niet steeds dezelfde startfrase.",
-        "Verboden herhaalzinnen nooit gebruiken, ook niet licht herschreven."
+        "Verboden herhaalzinnen nooit gebruiken, ook niet licht herschreven.",
+        "Als het te netjes of te serieus klinkt, meteen herschrijven."
       ],
       en: [
         "TIMO MODE: blunt, funny-destructive, savage and specific.",
-        "Do not sound like film school notes; sound like a couch roast with short hits.",
-        "One-liner: 1-2 sentences max, funniest and hardest punchline in output.",
+        "Do not sound like film-school notes; sound like a couch roast with dumb hard jokes.",
+        "One-liner: 1-2 sentences max, joke first, content second.",
+        "Prefer blunt and stupid-funny over polished or clever.",
+        "Use short hits and obvious punchlines.",
         "Use example lines as style energy only; never copy, never paraphrase.",
         "Internally draft 8 different one-liners first, then pick the most original.",
         "One-liner must be frame-specific using visible details: focus, background, pose, expression, props, light source, framing, color.",
         "Vary opening structures; avoid repeating the same opening formula.",
-        "Never output forbidden repeat lines or close variants."
+        "Never output forbidden repeat lines or close variants.",
+        "If it sounds too serious, rewrite immediately."
       ]
     }
   };
@@ -755,11 +872,13 @@ function buildSystemPrompt(options) {
   const timoRules =
     roastLevel === "timo"
       ? [
-          "Timo must be the funniest and sharpest mode by far.",
-          "Use humiliating comparisons and short, blunt phrasing.",
+          "Timo must be dumb-funny, blunt, and mean.",
+          "No neat film language. No teacher tone.",
+          "Use black-humor energy only about visible image details.",
+          "One-liner must include at least one of: comparison, visual metaphor, dumb insulting observation.",
           "Internally draft 8 one-liner options; output only the best one.",
           "Do NOT copy/paraphrase style examples or known fallback lines.",
-          "If one-liner sounds generic, regenerate a new one internally.",
+          "If one-liner sounds generic or too serious, regenerate internally.",
           "Use varied opening patterns across outputs: 'Dit ziet eruit alsof', 'Deze still voelt als', 'Alsof iemand', 'Nog net niet', 'Je zou denken dat', 'Dit is het soort beeld waar', 'Zelfs een', 'Het oogt alsof'.",
           "Tie jokes to concrete visible details, not generic templates.",
           "Forbidden phrases include variants of: 'Dit is niet filmisch, dit is gewoon kut met zelfvertrouwen.' and 'Je hebt niet voor stijl gekozen, je hebt gewoon controle verloren.'"
@@ -1003,40 +1122,89 @@ function sanitizePayload(parsed, options) {
           verdict: "Ik vind dit echt heel knap gedaan hoor, en met een paar kleine dingetjes wordt het alleen nog mooier."
         };
 
+  const timoFallbackPool =
+    language === "en"
+      ? [
+          "This looks like a bad audition tape that escaped into your timeline.",
+          "This is not tension, this is misery with backlight.",
+          "You would think this is intentionally bad, but sadly no.",
+          "This reads like someone forgot to clean the lens and called it mood.",
+          "This frame looks like the set gave up halfway through the scene.",
+          "This is the kind of shot where even focus says 'figure it out yourself.'",
+          "Looks like the scene quit before the actors did.",
+          "This feels like a commercial for creative exhaustion.",
+          "Almost like someone shot chaos and called it style.",
+          "This looks like confidence driving straight into a ditch.",
+          "This still takes itself way too seriously for how broken it is.",
+          "Looks like a student project with delusions of grandeur.",
+          "This is just confusion wearing fake cinematic makeup.",
+          "This frame looks tired, lost, and weirdly proud of it.",
+          "This feels like a rehearsal that accidentally got exported.",
+          "Looks more like random noise than a directed moment.",
+          "This is one long 'we'll fix it in post' disaster.",
+          "You can almost hear the frame apologizing for itself.",
+          "This shot looks like a panic attack in color grading form.",
+          "This is visually unemployed and emotionally overacting."
+        ]
+      : [
+          "Dit ziet eruit alsof iemand per ongeluk een stil uit een slechte auditietape heeft geëxporteerd.",
+          "Dit is niet spannend, dit is gewoon ellende met tegenlicht.",
+          "Je zou bijna denken dat dit expres zo kut is, maar helaas.",
+          "Dit oogt alsof iemand z'n lens vies had en daarna heeft gezegd dat het sfeer was.",
+          "Dit frame hangt erbij alsof niemand op set nog zin had om te leven.",
+          "Dit is echt zo'n beeld waar de focus ook denkt: zoek het lekker uit.",
+          "Het lijkt alsof de scène halverwege zelf is afgehaakt.",
+          "Dit ziet eruit als een promo voor vermoeidheid.",
+          "Dit lijkt meer op paniek met camera dan op regie.",
+          "Dit frame neemt zichzelf bloedserieus terwijl alles halfbakken is.",
+          "Dit ziet eruit alsof iemand chaos draaide en dat daarna stijl noemde.",
+          "Dit is een glijpartij met kleurcorrectie.",
+          "Dit oogt als studententrots op een fout die niet meer te redden is.",
+          "Dit lijkt op een repetitie die per ongeluk online kwam.",
+          "Dit shot doet alsof het diep is, maar het is vooral troebel.",
+          "Dit is visuele ruis met grootspraak.",
+          "Dit frame heeft de energie van 'we fixen het wel in post'.",
+          "Dit ziet eruit alsof iedereen op set tegelijk afhaakte.",
+          "Dit is gewoon geklooi met zelfvertrouwen.",
+          "Dit beeld heeft stijlambitie en uitvoering van een kapotte zaklamp."
+        ];
+
   const timoFallback =
     language === "en"
       ? {
-          oneLiner: "This frame looks like panic pretending to be a visual style.",
-          verdict: "Technically maybe usable, creatively still face-planting into mediocrity.",
-          strengths: ["At least the subject is visible, so it is not total chaos."],
+          oneLiner: timoFallbackPool[Math.floor(Math.random() * timoFallbackPool.length)],
+          verdict: "Technically a still, creatively a slow-motion faceplant.",
+          strengths: ["At least the subject exists in frame, so total disaster was avoided by luck."],
           problems: [
-            "The framing hangs there like nobody committed to a decision.",
-            "Your key light avoids the subject like it is allergic to storytelling.",
-            "Background clutter screams louder than the characters.",
-            "Depth/focus choices feel like accidents sold as taste."
+            "That framing sits there like nobody checked the monitor with open eyes.",
+            "Focus misses the point like the subject is optional.",
+            "That light does less than a dying flashlight.",
+            "Background clutter is partying harder than your scene.",
+            "Styling looks like random leftovers from another project."
           ],
           fixes: [
-            "Choose one framing idea and commit.",
-            "Put the main light on the subject, not random junk.",
-            "Kill noisy background distractions.",
-            "Lock focus where the story actually is."
+            "Pick one frame and commit, stop parking in safe middle-land.",
+            "Put light on the subject, not on random nonsense.",
+            "Kill the fake blur and lock focus where eyes actually look.",
+            "Clean the background until it stops sabotaging the shot."
           ]
         }
       : {
-          oneLiner: "Dit frame ziet eruit als paniek die zich voordoet als stijl.",
-          verdict: "Technisch misschien bruikbaar, creatief glijdt dit hard de middelmaat in.",
-          strengths: ["Je onderwerp staat tenminste in beeld, dus het is niet volledig chaos."],
+          oneLiner: timoFallbackPool[Math.floor(Math.random() * timoFallbackPool.length)],
+          verdict: "Technisch gezien een still, inhoudelijk vooral een glijpartij.",
+          strengths: ["Je onderwerp staat in beeld, dus compleet ontsporen is net niet gelukt."],
           problems: [
-            "Je kader hangt erbij alsof niemand een echte keuze durfde te maken.",
-            "Je keylight ontwijkt je onderwerp alsof verhaal vertellen optioneel was.",
-            "Je achtergrond schreeuwt harder dan je scene.",
-            "Je focus/diepte lijkt op ongelukjes die als smaak worden verkocht."
+            "Dat kader hangt er ook weer bij alsof niemand even normaal heeft gekeken.",
+            "Die focus zit ernaast alsof het onderwerp zelf niet belangrijk was.",
+            "Dat licht doet minder dan een kapotte zaklamp.",
+            "Die achtergrond staat gezellig mee te slopen aan je shot.",
+            "De styling voelt als random troep zonder plan."
           ],
           fixes: [
-            "Kies één kaderidee en commit.",
-            "Zet je hoofdlicht op je onderwerp, niet op random troep.",
-            "Sloop afleidende achtergrondruis.",
-            "Leg je focus waar het verhaal zit."
+            "Kies één kader en commit, stop met dat veilige middengebied.",
+            "Zet licht op je onderwerp in plaats van op onzin eromheen.",
+            "Duw die nep-blur weg en zet je focus waar ogen echt landen.",
+            "Ruim de achtergrond op tot hij niet meer tegen je werkt."
           ]
         };
 
@@ -1071,11 +1239,17 @@ function sanitizePayload(parsed, options) {
   if (roastLevel === "timo") {
     payload.brutality_score = 10;
     payload.strengths = normalizeList(payload.strengths, { language, max: 2, min: 1, fallback: timoFallback.strengths });
-    payload.problems = normalizeList(payload.problems, { language, max: 7, min: 4, fallback: timoFallback.problems });
+    payload.problems = normalizeList(payload.problems, { language, max: 7, min: 4, fallback: timoFallback.problems }).map((line, i) =>
+      isTooSeriousTimoBullet(line, language) ? timoFallback.problems[i % timoFallback.problems.length] : line
+    );
     payload.fixes = normalizeList(payload.fixes, { language, max: 5, min: 3, fallback: timoFallback.fixes });
+    payload.final_verdict = toCleanString(payload.final_verdict) || timoFallback.verdict;
+    if (isTooSeriousTimoLine(payload.final_verdict, language)) {
+      payload.final_verdict = timoFallback.verdict;
+    }
 
     if (failsOriginalityCheck(payload.one_liner_roast, language, roastLevel)) {
-      payload.one_liner_roast = timoFallback.oneLiner;
+      payload.one_liner_roast = buildForcedUniqueOneLiner(language, roastLevel, Date.now() % 101);
     }
   }
 
@@ -1112,42 +1286,42 @@ function buildEmergencyPayload(language, roastLevel) {
   if (roastLevel === "timo") {
     return isEnglish
       ? {
-          one_liner_roast: "This still looks like panic wearing a fake cinematic jacket.",
+          one_liner_roast: "This looks like a bad rehearsal that accidentally got exported.",
           cinema_score: 3,
           brutality_score: 10,
           strengths: ["At least the subject is visible."],
           problems: [
-            "Framing is safe and indecisive.",
-            "Light hierarchy misses the subject.",
-            "Background noise competes with the scene.",
-            "Focus/depth feels accidental."
+            "That framing hangs there like nobody checked it twice.",
+            "The light works less than a dying flashlight.",
+            "Background noise steals the scene for free.",
+            "Focus lands everywhere except where it should."
           ],
           fixes: [
-            "Commit to one framing choice.",
-            "Shape key light for the subject first.",
-            "Simplify background distractions.",
-            "Lock focus on story-critical areas."
+            "Pick one frame and commit.",
+            "Put light on the subject, not random junk.",
+            "Strip background clutter until it behaves.",
+            "Lock focus where the story actually is."
           ],
-          final_verdict: "Technically usable, creatively still undercooked."
+          final_verdict: "Technically a still, creatively a wobbling trainwreck."
         }
       : {
-          one_liner_roast: "Deze still ziet eruit als paniek met een nep-filmisch jasje.",
+          one_liner_roast: "Dit ziet eruit als een repetitie die per ongeluk online is gezet.",
           cinema_score: 3,
           brutality_score: 10,
           strengths: ["Je onderwerp is tenminste zichtbaar."],
           problems: [
-            "Kadrering is veilig en besluiteloos.",
-            "Lichthiërarchie mist het onderwerp.",
-            "Achtergrondruis concurreert met de scene.",
-            "Focus/diepte voelt als toeval."
+            "Dat kader hangt erbij alsof niemand twee seconden extra heeft gekeken.",
+            "Dat licht doet minder dan een lege zaklamp.",
+            "Die achtergrond jat alle aandacht zonder iets toe te voegen.",
+            "De focus zit overal behalve waar het verhaal zit."
           ],
           fixes: [
-            "Commit op één duidelijke kaderkeuze.",
-            "Shape je keylight eerst voor je onderwerp.",
-            "Verminder achtergrondafleiding.",
-            "Zet focus strak op story-kritische zones."
+            "Kies één kader en commit.",
+            "Zet licht op je onderwerp, niet op rommel eromheen.",
+            "Sloop achtergrondruis tot het beeld weer ademt.",
+            "Zet focus waar je kijker moet kijken."
           ],
-          final_verdict: "Technisch bruikbaar, creatief nog halfbakken."
+          final_verdict: "Technisch gezien een still, inhoudelijk vooral een glijpartij."
         };
   }
 
