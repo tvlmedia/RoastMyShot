@@ -132,18 +132,34 @@ async function handleRoast() {
   showLoading();
 
   try {
-    await delay(1200);
-
-    const mockResult = generateMockRoast({
-      roastLevel: roastLevel.value,
-      styleGoal: styleGoal.value,
-      language: languageSelect?.value || "nl"
+    const response = await fetch("/api/roast", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        image: uploadedImageBase64,
+        roastLevel: roastLevel.value,
+        styleGoal: styleGoal.value,
+        language: languageSelect?.value || "nl"
+      })
     });
 
-    renderResult(mockResult);
+    let data = null;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error("Server gaf geen geldige JSON response.");
+    }
+
+    if (!response.ok) {
+      throw new Error(data?.error || "Er ging iets mis met de roast API.");
+    }
+
+    renderResult(data);
   } catch (error) {
     console.error(error);
-    alert("Er ging iets mis bij het roasten van je shot.");
+    alert(error.message || "Er ging iets mis bij het roasten van je shot.");
     showEmpty();
   }
 }
@@ -184,321 +200,3 @@ function fillList(element, items) {
     element.appendChild(li);
   });
 }
-
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function generateMockRoast({ roastLevel, styleGoal, language = "nl" }) {
-  const styleFixMap = {
-    nl: {
-      cinematic: "Maak de belichting directioneler en zorg dat je subject duidelijker loskomt van de achtergrond.",
-      commercial: "Maak het cleaner, gecontroleerder en visueel duurder met meer shape in het licht.",
-      raw: "Laat het minder netjes voelen en durf dichter op je onderwerp te kruipen.",
-      arthouse: "Maak het kader gedurfder en laat negatieve ruimte echt betekenis dragen.",
-      intimate: "Ga dichter op je subject zitten en maak de camera-emotie persoonlijker."
-    },
-    en: {
-      cinematic: "Make the lighting more directional and separate your subject from the background.",
-      commercial: "Make it cleaner, more controlled, and visually premium with better light shaping.",
-      raw: "Let it feel less polished and move physically closer to your subject.",
-      arthouse: "Push the framing harder and let negative space carry real meaning.",
-      intimate: "Get closer to the subject and make the camera feel more personal."
-    }
-  };
-
-  const variantsByLanguage = {
-    nl: {
-      mother: {
-        cinema_score: 6.6,
-        brutality_score: 1,
-        one_liner_roast:
-          "Ahh, er zit echt wel sfeer in hoor. Misschien kan het nog net wat sterker als je onderwerp iets meer aandacht krijgt.",
-        strengths: [
-          "Er zit al een duidelijk gevoel in het beeld en dat is veel waard.",
-          "De exposure lijkt bruikbaar en het shot voelt niet compleet willekeurig.",
-          "Je hebt in ieder geval een basis van sfeer neergezet waar je op kunt voortbouwen."
-        ],
-        problems: [
-          "Je onderwerp zou nog iets meer mogen loskomen van de achtergrond.",
-          "De compositie voelt nu nog een beetje veilig.",
-          "Het licht zou iets meer richting mogen krijgen om het beeld sterker te maken."
-        ],
-        fixes: [
-          "Probeer je onderwerp iets minder centraal te zetten.",
-          "Kijk of je de achtergrond een tikje rustiger of donkerder kunt maken.",
-          styleFixMap.nl[styleGoal],
-          "Durf gerust iets duidelijker te kiezen in camerastandpunt of afstand."
-        ],
-        final_verdict:
-          "Een prima begin met sfeer en potentie. Nog niet helemaal uitgesproken, maar zeker iets waar je verder mee kunt."
-      },
-      honest: {
-        cinema_score: 6.0,
-        brutality_score: 4,
-        one_liner_roast:
-          "Het shot is bruikbaar en leesbaar, maar voelt nog meer geregistreerd dan echt doordacht.",
-        strengths: [
-          "Het onderwerp is leesbaar en het shot heeft een basis van sfeer.",
-          "Exposure en algemene look zijn functioneel genoeg om op door te bouwen.",
-          "Er zit een visuele richting in, alleen nog niet uitgesproken genoeg."
-        ],
-        problems: [
-          "De compositie is te veilig en daardoor niet heel memorabel.",
-          "Het licht mist richting en shape, waardoor het beeld wat vlak blijft.",
-          "De achtergrond helpt het onderwerp nog onvoldoende."
-        ],
-        fixes: [
-          "Maak een duidelijkere keuze in kadrering: dichterbij, lager of grafischer.",
-          "Geef het licht meer richting zodat het onderwerp meer vorm krijgt.",
-          "Zorg dat je onderwerp meer scheidt van de achtergrond.",
-          styleFixMap.nl[styleGoal]
-        ],
-        final_verdict:
-          "Functioneel en niet slecht, maar nog te voorzichtig om echt sterk cinematografisch te voelen."
-      },
-      hard: {
-        cinema_score: 5.8,
-        brutality_score: 7,
-        one_liner_roast:
-          "Dit shot voelt gekozen uit veiligheid, niet uit overtuiging.",
-        strengths: [
-          "Het onderwerp is in ieder geval leesbaar en het frame is niet compleet chaotisch.",
-          "Er zit een basisidee in het shot, dus het voelt niet volledig willekeurig.",
-          "Exposure lijkt bruikbaar genoeg om mee verder te werken."
-        ],
-        problems: [
-          "De compositie voelt te veilig en te centraal, waardoor het shot weinig karakter heeft.",
-          "Het licht mist richting, waardoor het beeld vlak aanvoelt.",
-          "De achtergrond doet inhoudelijk weinig en helpt je onderwerp niet.",
-          "Er is te weinig visuele spanning tussen voorgrond, subject en achtergrond."
-        ],
-        fixes: [
-          "Verplaats je onderwerp uit het dode midden tenzij daar echt een inhoudelijke reden voor is.",
-          "Maak de achtergrond subtiel donkerder of rustiger zodat je subject meer loskomt.",
-          "Kies een duidelijkere camerahoogte: lager, hoger, of dichterbij - maar niet deze neutrale twijfelstand.",
-          styleFixMap.nl[styleGoal]
-        ],
-        final_verdict:
-          "Bruikbaar als registrerend shot, maar nog niet sterk genoeg om echt filmisch of uitgesproken te voelen. Er is vooral meer keuze nodig."
-      },
-      merciless: {
-        cinema_score: 5.1,
-        brutality_score: 9,
-        one_liner_roast:
-          "Dit is geen compositie, dit is cameratoezicht met ambitie.",
-        strengths: [
-          "Het shot is technisch nog net bruikbaar genoeg om niet meteen af te serveren.",
-          "Het onderwerp is tenminste herkenbaar, dus volledig stuurloos is het niet.",
-          "Er zit ergens een poging tot sfeer in."
-        ],
-        problems: [
-          "Het kader maakt geen harde keuze en blijft hangen in slap middengebied.",
-          "Het licht doet bijna niets om het onderwerp echt te shapen of te isoleren.",
-          "De achtergrond concurreert eerder met je shot dan dat hij het ondersteunt.",
-          "Het frame voelt alsof niemand op set durfde te kiezen voor iets spannenders."
-        ],
-        fixes: [
-          "Ga dichterbij of juist grafischer wijder, maar stop met dit veilige tussenin.",
-          "Maak je licht duidelijker: richting, contrast en prioriteit.",
-          "Laat de achtergrond ondergeschikt worden aan je onderwerp.",
-          styleFixMap.nl[styleGoal]
-        ],
-        final_verdict:
-          "Niet waardeloos, wel besluiteloos. Dit beeld mist lef, hiërarchie en een echte cinematografische keuze."
-      },
-      timo: {
-        cinema_score: 4.7,
-        brutality_score: 10,
-        one_liner_roast:
-          "Je hebt hier technisch een shot gemaakt, maar creatief echt geen reet besloten.",
-        strengths: [
-          "Het bestand is succesvol geüpload.",
-          "Je onderwerp staat in beeld.",
-          "Het shot is niet volledig onbruikbaar, alleen visueel veel te braaf."
-        ],
-        problems: [
-          "Alles hangt in dat slappe middengebied waar beelden doodgaan.",
-          "De compositie is laf en veel te veilig om echt iets te voelen.",
-          "Het licht is zo besluiteloos dat niets in het frame belangrijk wordt.",
-          "De achtergrond voegt weinig toe en verraadt vooral gebrek aan controle.",
-          "Dit beeld registreert wel iets, maar zegt visueel bijna niks."
-        ],
-        fixes: [
-          "Maak eindelijk een echte keuze in afstand, hoogte en kader.",
-          "Shape je licht alsof het onderwerp ertoe doet.",
-          "Haal storende of nutteloze achtergrondinformatie weg of duw die visueel terug.",
-          styleFixMap.nl[styleGoal]
-        ],
-        final_verdict:
-          "Technisch bruikbaar, creatief halfbakken. Dit shot had veel harder, slimmer en uitgesprokener gekund."
-      }
-    },
-    en: {
-      mother: {
-        cinema_score: 6.6,
-        brutality_score: 1,
-        one_liner_roast:
-          "There is real atmosphere here. It just needs a little more focus on your subject.",
-        strengths: [
-          "The image already carries a clear mood.",
-          "Exposure is usable and does not feel random.",
-          "You have a solid base to build a stronger shot from."
-        ],
-        problems: [
-          "Your subject could separate more clearly from the background.",
-          "The composition still feels a bit safe.",
-          "Lighting needs more direction to add shape."
-        ],
-        fixes: [
-          "Try placing the subject less centrally.",
-          "Make the background slightly cleaner or darker.",
-          styleFixMap.en[styleGoal],
-          "Commit to a clearer camera distance or angle."
-        ],
-        final_verdict:
-          "A solid start with good potential. Not fully decisive yet, but definitely worth developing."
-      },
-      honest: {
-        cinema_score: 6.0,
-        brutality_score: 4,
-        one_liner_roast:
-          "Readable and usable, but it still feels captured rather than intentionally designed.",
-        strengths: [
-          "The subject reads clearly.",
-          "Overall exposure and look are functional.",
-          "There is visual direction, just not pushed far enough."
-        ],
-        problems: [
-          "The framing is safe and not very memorable.",
-          "Lighting lacks shape and intent.",
-          "The background is not helping the subject enough."
-        ],
-        fixes: [
-          "Make a harder framing choice: closer, lower, or more graphic.",
-          "Add directional light to give the subject form.",
-          "Increase foreground-background separation.",
-          styleFixMap.en[styleGoal]
-        ],
-        final_verdict:
-          "Competent, but still too cautious to feel truly cinematic."
-      },
-      hard: {
-        cinema_score: 5.8,
-        brutality_score: 7,
-        one_liner_roast:
-          "This frame feels chosen for safety, not conviction.",
-        strengths: [
-          "The subject is readable and the frame is not chaotic.",
-          "There is at least a basic visual idea.",
-          "Exposure is workable."
-        ],
-        problems: [
-          "The composition is too centered and cautious.",
-          "Lighting is flat and undecided.",
-          "The background contributes little story value.",
-          "Depth and visual tension are weak."
-        ],
-        fixes: [
-          "Move the subject out of dead center unless you can justify it.",
-          "Control the background so the subject pops more clearly.",
-          "Choose a stronger camera height or distance.",
-          styleFixMap.en[styleGoal]
-        ],
-        final_verdict:
-          "Usable as coverage, but not strong enough yet to feel like a confident cinematic choice."
-      },
-      merciless: {
-        cinema_score: 5.1,
-        brutality_score: 9,
-        one_liner_roast:
-          "This is not composition, this is surveillance with ambition.",
-        strengths: [
-          "Technically still usable.",
-          "The subject is identifiable.",
-          "There is a faint attempt at mood."
-        ],
-        problems: [
-          "The frame avoids every bold choice.",
-          "Lighting does not prioritize what matters.",
-          "The background competes instead of supporting.",
-          "The image has no visual hierarchy."
-        ],
-        fixes: [
-          "Go tighter or go graphically wider, stop living in the middle.",
-          "Define your lighting direction and contrast.",
-          "Make the background clearly secondary.",
-          styleFixMap.en[styleGoal]
-        ],
-        final_verdict:
-          "Not useless, but deeply undecided. It needs intent, hierarchy, and courage."
-      },
-      timo: {
-        cinema_score: 4.7,
-        brutality_score: 10,
-        one_liner_roast:
-          "You made a technically valid shot, then forgot to make creative decisions.",
-        strengths: [
-          "The file uploaded successfully.",
-          "The subject is visible.",
-          "It is not unusable, just far too timid."
-        ],
-        problems: [
-          "The frame lives in a dead, safe middle ground.",
-          "Composition lacks risk and character.",
-          "Lighting is indecisive, so nothing feels important.",
-          "Background control is weak.",
-          "The image records something but says little."
-        ],
-        fixes: [
-          "Pick a real choice in distance, height, and framing.",
-          "Shape light like your subject actually matters.",
-          "Remove or suppress useless background information.",
-          styleFixMap.en[styleGoal]
-        ],
-        final_verdict:
-          "Technically passable, creatively undercooked. This needed sharper, braver choices."
-      }
-    }
-  };
-
-  const selectedLanguage = variantsByLanguage[language] ? language : "nl";
-  const variants = variantsByLanguage[selectedLanguage];
-  return variants[roastLevel] || variants.hard;
-}
-
-/*
-Later vervang je handleRoast() door een echte fetch naar je backend.
-
-Bijvoorbeeld:
-
-async function handleRoast() {
-  if (!uploadedImageBase64) return;
-  showLoading();
-
-  try {
-    const response = await fetch("https://jouw-backend-url.vercel.app/api/roast", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        image: uploadedImageBase64,
-        roastLevel: roastLevel.value,
-        styleGoal: styleGoal.value
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error("API request failed");
-    }
-
-    const data = await response.json();
-    renderResult(data);
-  } catch (error) {
-    console.error(error);
-    alert("Er ging iets mis bij de AI roast.");
-    showEmpty();
-  }
-}
-*/

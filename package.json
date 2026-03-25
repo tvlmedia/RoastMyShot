@@ -1,0 +1,9 @@
+{
+  "name": "roast-my-shot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "dependencies": {
+    "openai": "^4.104.0"
+  }
+}
