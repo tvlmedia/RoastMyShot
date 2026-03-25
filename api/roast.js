@@ -108,9 +108,15 @@ function hasComparisonTone(text) {
   if (!source) return false;
 
   const markers = [
+    " dit is gewoon ",
+    " ziet eruit alsof ",
     " alsof ",
     " als een ",
     " lijkt op ",
+    " lijkt meer op ",
+    " doet alsof ",
+    " nog net niet ",
+    " zelfs een ",
     " doet vermoeden ",
     " schreeuwt ",
     " more like ",
@@ -136,8 +142,8 @@ function hasTimoFlavor(text, language) {
 
   const markers =
     language === "en"
-      ? ["student", "arthouse", "bokeh", "middle of the road", "half-baked", "timid", "creative brief", "fake deep"]
-      : ["student", "arthouse", "bokeh", "middle of the road", "halfbakken", "laf", "slap", "nep-arthouse", "pseudo-diep"];
+      ? ["student", "arthouse", "bokeh", "middle of the road", "half-baked", "timid", "creative brief", "fake deep", "this is just", "looks like"]
+      : ["student", "arthouse", "bokeh", "middle of the road", "halfbakken", "laf", "slap", "nep-arthouse", "pseudo-diep", "dit is gewoon", "ziet eruit alsof"];
 
   return markers.some((marker) => source.includes(marker));
 }
@@ -158,6 +164,18 @@ function isBlandTechnicalLine(text, language) {
   }
 
   return blandMarkers.some((marker) => source.includes(marker));
+}
+
+function hasHarshTone(text, language) {
+  const source = toCleanString(text).toLowerCase();
+  if (!source) return false;
+
+  const harshMarkers =
+    language === "en"
+      ? ["trash", "awful", "stupid", "weak", "destroy", "burn", "terrible", "bad", "fake arthouse", "student film"]
+      : ["kut", "verkankerd", "mogool", "laf", "slap", "halfbakken", "afmaken", "slecht", "waardeloos"];
+
+  return harshMarkers.some((marker) => source.includes(marker));
 }
 
 function normalizeList(value, options) {
@@ -270,14 +288,16 @@ function getLevelInstruction(roastLevel, language) {
   const rules = {
     mother: {
       nl: [
-        "JE MOEDER: heel lief, warm en steunend.",
-        "Focus op complimenten en zachte tips.",
-        "Nauwelijks hard, nooit vernietigend."
+        "JE MOEDER: extreem lief, beschermend en een beetje wereldvreemd positief.",
+        "Geef vooral complimenten, maak dingen mooier dan ze zijn, en verpak kritiek als iets piepkleins.",
+        "One-liner is geen roast maar een lieve opmerking met een mini-kritiekpunt.",
+        "Nooit hard, nooit vernietigend, nooit sarcastisch."
       ],
       en: [
-        "MOTHER MODE: very kind, warm, and supportive.",
-        "Lead with praise and gentle suggestions.",
-        "Barely harsh, never destructive."
+        "MOTHER MODE: extremely kind, protective, and a little naively positive.",
+        "Lead with praise, overstate positives, and wrap criticism as tiny gentle notes.",
+        "One-liner is not a roast; it is a loving comment with a tiny soft critique.",
+        "Never harsh, never destructive, never sarcastic."
       ]
     },
     honest: {
@@ -318,23 +338,25 @@ function getLevelInstruction(roastLevel, language) {
     },
     timo: {
       nl: [
-        "TIMO VAN LIEROP MODE: uiterste stand, extreem kritisch, lomp, creatief en grappig.",
-        "Allergisch voor middelmaat, studentenfilm-pretentie, brave arthouse-haakjes en visueel gelul zonder controle.",
-        "Niet alleen schelden: roast met vernederende vergelijkingen die direct op zichtbare framefouten slaan.",
-        "Pak misplaatste bokeh, pseudo-diepe blur, laf licht, veilige compositie, foute focus en rommelige achtergrond snoeihard aan.",
-        "Korte klappen. Droge minachting. Niet netjes formuleren.",
-        "One-liner moet de hardste en grappigste regel zijn, 1-2 zinnen max, quote-waardig en vernietigend.",
-        "Bij zwakke beelden: volledig affikken. Bij sterke punten: hooguit één zuur compliment en meteen door.",
+        "TIMO VAN LIEROP MODE: lomp, hard, dommig-grappig en meedogenloos raak.",
+        "Niet als filmdocent praten; klink als die vriend op de bank die direct ziet waarom het shot kut werkt.",
+        "Gebruik vernederende vergelijkingen: 'alsof', 'lijkt meer op', 'dit doet alsof', 'ziet eruit alsof', 'dit is gewoon ... met zelfvertrouwen'.",
+        "One-liner moet de grappigste klap zijn: 1-2 zinnen, eerst grap, daarna pas inhoud.",
+        "Pak studentenfilm-vibes, nep-arthouse, misplaatste bokeh, pseudo-diepte, laf licht, veilige compositie en visueel geklooi extra hard.",
+        "Problems moeten kort, bot en grappig-afbrandend zijn, niet netjes technisch geformuleerd.",
+        "Fixes mogen direct en lomp zijn.",
+        "Geen brave complimenten; hooguit één zuur compliment.",
         "Vermijd discriminerende of haatdragende scheldwoorden."
       ],
       en: [
-        "TIMO MODE: maximum intensity, brutally critical, blunt, creative, and funny.",
-        "Hates mediocrity, student-film pretension, fake arthouse hooks, and visual nonsense without control.",
-        "Do not rely on swearing alone: roast through humiliating comparisons tied to visible frame flaws.",
-        "Attack misplaced bokeh, pseudo-depth blur, timid lighting, safe framing, weak focus, and messy backgrounds.",
-        "Short punches. Dry contempt. No polite phrasing.",
-        "One-liner must be the hardest and funniest line, 1-2 sentences max, quote-worthy and destructive.",
-        "If frame is weak, burn it down. If something works, allow at most one sour compliment, then move on.",
+        "TIMO MODE: blunt, rough, stupid-funny, and brutally accurate.",
+        "Do not sound like a film professor; sound like the savage friend on the couch calling out exactly why the still fails.",
+        "Use humiliating comparison language: 'as if', 'looks more like', 'this pretends to be', 'looks like', 'this is just ... with confidence'.",
+        "One-liner must be the funniest hit: 1-2 sentences, joke first, content second.",
+        "Hit student-film vibes, fake arthouse, misplaced bokeh, pseudo-depth, timid light, safe framing, and visual chaos hard.",
+        "Problems must be short, blunt, roasty, and funny instead of polite technical notes.",
+        "Fixes can be direct and rough.",
+        "No soft compliments; at most one sour compliment.",
         "Avoid discriminatory slurs."
       ]
     }
@@ -391,8 +413,25 @@ function buildSystemPrompt(options) {
             ? "Avoid neutral technical wording in Timo mode. Make problem bullets roast-like, short, and contemptuous."
             : "Vermijd neutrale technische formulering in Timo-mode. Maak problem-bullets roastend, kort en minachtend.",
           language === "en"
+            ? "One-liner must be the funniest line in the output. Joke first, then content."
+            : "One-liner moet de grappigste zin van de output zijn. Eerst grap, daarna inhoud.",
+          language === "en"
             ? "Do not be polite. Do not soften impact. Keep sentences short and hard."
             : "Niet netjes formuleren. Niets verzachten. Houd zinnen kort en hard."
+        ]
+      : [];
+  const motherSoftRules =
+    roastLevel === "mother"
+      ? [
+          language === "en"
+            ? "Mother output must feel loving, protective, and awkwardly positive, not professional critique."
+            : "Moeder-output moet liefdevol, beschermend en onhandig positief voelen, niet als professionele feedback.",
+          language === "en"
+            ? "Praise more than critique. Keep all critique very soft and small."
+            : "Geef meer complimenten dan kritiek. Maak alle kritiek heel zacht en klein.",
+          language === "en"
+            ? "Do not use destructive comparisons, sarcasm, or hard phrasing."
+            : "Gebruik geen vernietigende vergelijkingen, sarcasme of harde formulering."
         ]
       : [];
 
@@ -401,6 +440,7 @@ function buildSystemPrompt(options) {
     languageRule,
     ...outputRules,
     ...levelRules,
+    ...motherSoftRules,
     ...timoHardRules,
     extraConstraint
   ]
@@ -435,13 +475,15 @@ function buildUserPrompt(options) {
             "Make Timo significantly funnier and meaner than every other mode.",
             "Use unexpected humiliating comparisons (student film vibes, fake arthouse, misplaced bokeh, pseudo-depth, timid lighting).",
             "One-liner: 1-2 sentences, hardest and funniest punchline in the entire output.",
-            "Do not sound like normal technical notes."
+            "Do not sound like normal technical notes.",
+            "Use couch-friend energy: short dumb-funny hits that are painfully true."
           ]
         : [
             "Maak Timo duidelijk grappiger en gemener dan alle andere modi.",
             "Gebruik onverwachte vernederende vergelijkingen (studentenfilm-vibes, nep-arthouse, misplaatste bokeh, pseudo-diepte, laf licht).",
             "One-liner: 1-2 zinnen, hardste en grappigste punchline van de hele output.",
-            "Klink niet als normale technische feedback."
+            "Klink niet als normale technische feedback.",
+            "Gebruik bankvriend-energie: korte dom-grappige klappen die pijnlijk waar zijn."
           ]
       : [];
 
@@ -638,18 +680,18 @@ function sanitizePayload(parsed, options) {
   const timoExtraProblems =
     language === "en"
       ? [
-          "This frame screams student-film confidence with zero control, like you dropped focus and called it a statement.",
-          "The bokeh feels misplaced, like someone opened the lens wide and hoped blur would do the directing.",
-          "Lighting is so timid it looks like the image is apologizing for existing.",
-          "The framing sits in safe middle-of-the-road territory, as if fear wrote the shot list.",
-          "Background detail is visual noise, not atmosphere, like props were left in and called texture."
+          "This looks like someone hit record by accident and then shouted 'mood' to save face.",
+          "The bokeh is misplaced, like a first-year discovered blur and tried to skip directing.",
+          "This light is so limp even a construction lamp would be embarrassed.",
+          "The framing hangs there like nobody bothered to look at it for two extra seconds.",
+          "The background joins in on wrecking the shot like visual noise with confidence."
         ]
       : [
-          "Dit schreeuwt studentenfilm-zelfvertrouwen zonder controle, alsof je focus hebt laten vallen en dat dan stijl noemt.",
-          "Die bokeh is misplaatst, alsof iemand wide open draaide en hoopte dat blur het regiewerk zou doen.",
-          "Dat licht is zo laf dat het beeld zich bijna verontschuldigt voor z'n eigen bestaan.",
-          "Je kader hangt in veilig middle-of-the-road gebied, alsof angst je shotlist heeft geschreven.",
-          "Die achtergrond is visuele ruis, geen sfeer, alsof niemand even heeft opgeruimd voor de take."
+          "Dit ziet eruit alsof iemand per ongeluk op record drukte en daarna heel hard 'sfeer' riep.",
+          "Die bokeh is misplaatst, alsof een eerstejaars blur ontdekte en regie oversloeg.",
+          "Dat licht is zo slap dat zelfs een bouwlamp zich ervoor zou schamen.",
+          "Dat kader hangt erbij alsof niemand nog even twee seconden heeft gekeken.",
+          "Die achtergrond doet gezellig mee met het verkankeren van je shot."
         ];
 
   const timoSourStrengths =
@@ -663,13 +705,69 @@ function sanitizePayload(parsed, options) {
 
   const timoOneLiner =
     language === "en"
-      ? "This pretends to be arthouse, but looks like a student shot that lost control and called it mood."
-      : "Dit doet alsof het arthouse is, maar het oogt als een studenten-shot dat controle verloor en dat sfeer noemde.";
+      ? "This pretends to be cinematic, but it looks like chaos with confidence."
+      : "Dit is niet filmisch, dit is gewoon kut met zelfvertrouwen.";
 
   const timoVerdictFallback =
     language === "en"
-      ? "Technically maybe usable, but creatively it crashes like a student short pretending blur is depth."
-      : "Technisch misschien bruikbaar, maar creatief klapt dit in elkaar alsof een studentenfilm blur voor diepte probeert te verkopen.";
+      ? "Technically maybe usable, creatively it sinks like a student short pretending blur is depth and panic is style."
+      : "Technisch misschien bruikbaar, creatief zinkt dit als een studentenfilm die blur voor diepte en paniek voor stijl verkoopt.";
+
+  const timoFixesFallback =
+    language === "en"
+      ? [
+          "Pick one framing decision and commit; this safe middle is killing the image.",
+          "Stop hiding behind blur and give the subject actual visual priority.",
+          "Control your light like you mean it, not like you are negotiating with fear.",
+          "Clean the background so it stops sabotaging your shot."
+        ]
+      : [
+          "Kies één kaderkeuze en commit; dit veilige midden maakt je beeld kapot.",
+          "Stop met verstoppen achter blur en geef je onderwerp echte prioriteit.",
+          "Zet je licht neer alsof je iets durft, niet alsof je bang bent voor contrast.",
+          "Ruim die achtergrond op zodat hij je shot niet langer saboteert."
+        ];
+
+  const motherFallback =
+    language === "en"
+      ? {
+          oneLiner: "Aww, this is honestly really lovely, maybe the face could be just a little brighter.",
+          strengths: [
+            "You can feel that you put care into this shot.",
+            "There is a nice atmosphere, even if I do not fully understand everything.",
+            "It already feels cinematic in a sweet way."
+          ],
+          problems: [
+            "Maybe there is just a tiny bit much happening in the background.",
+            "The face could maybe be a little easier to see.",
+            "I had to look carefully in a few places."
+          ],
+          fixes: [
+            "Maybe add a tiny bit more light on the face.",
+            "Maybe make the background slightly calmer.",
+            "Maybe let the subject stand out just a little more."
+          ],
+          verdict: "I think this is really lovely and you should be proud; with a few tiny tweaks it will be even prettier."
+        }
+      : {
+          oneLiner: "Ahhh, ik vind dit eigenlijk best wel mooi hoor, alleen misschien is het gezichtje een beetje donker.",
+          strengths: [
+            "Je ziet echt dat je hier gevoel in hebt gestopt.",
+            "Ik vind de sfeer heel mooi en spannend overkomen.",
+            "Wat knap dat je dit allemaal zelf maakt."
+          ],
+          problems: [
+            "Op de achtergrond gebeurt misschien net iets veel.",
+            "Het gezicht had misschien nog iets beter zichtbaar gemogen.",
+            "Ik moest soms even goed kijken."
+          ],
+          fixes: [
+            "Misschien een klein beetje meer licht op het gezicht.",
+            "Misschien de achtergrond iets rustiger maken.",
+            "Misschien het onderwerp nog iets meer laten opvallen."
+          ],
+          verdict: "Ik vind dit echt heel knap gedaan hoor, en met een paar kleine dingetjes wordt het alleen nog mooier."
+        };
 
   let strengths = normalizeList(parsed?.strengths, {
     language,
@@ -689,7 +787,7 @@ function sanitizePayload(parsed, options) {
     language,
     max: 6,
     min: 2,
-    fallback: baseFallback.fixes
+    fallback: roastLevel === "timo" ? timoFixesFallback : baseFallback.fixes
   });
 
   if (roastLevel === "timo") {
@@ -760,6 +858,36 @@ function sanitizePayload(parsed, options) {
     }
   }
 
+  if (roastLevel === "mother") {
+    payload.brutality_score = Math.min(2, clampScore(payload.brutality_score, 1));
+    payload.strengths = normalizeList(payload.strengths, {
+      language,
+      max: 3,
+      min: 3,
+      fallback: motherFallback.strengths
+    });
+    payload.problems = normalizeList(payload.problems, {
+      language,
+      max: 3,
+      min: 2,
+      fallback: motherFallback.problems
+    }).map((line, idx) => (hasHarshTone(line, language) ? motherFallback.problems[idx % motherFallback.problems.length] : line));
+    payload.fixes = normalizeList(payload.fixes, {
+      language,
+      max: 3,
+      min: 2,
+      fallback: motherFallback.fixes
+    });
+
+    if (!payload.one_liner_roast || hasHarshTone(payload.one_liner_roast, language) || hasComparisonTone(payload.one_liner_roast)) {
+      payload.one_liner_roast = motherFallback.oneLiner;
+    }
+
+    if (!payload.final_verdict || hasHarshTone(payload.final_verdict, language) || hasComparisonTone(payload.final_verdict)) {
+      payload.final_verdict = motherFallback.verdict;
+    }
+  }
+
   return payload;
 }
 
@@ -778,6 +906,14 @@ function violatesHardConstraints(payload, roastLevel, language) {
     if (!hasTimoFlavor(payload.one_liner_roast, language)) return true;
     if (!hasTimoFlavor(payload.final_verdict, language)) return true;
     if (countSentences(payload.one_liner_roast) > 2) return true;
+  }
+
+  if (roastLevel === "mother") {
+    if (payload.brutality_score > 2) return true;
+    if (!Array.isArray(payload.strengths) || payload.strengths.length < 2) return true;
+    if (!Array.isArray(payload.problems) || payload.problems.length < 1) return true;
+    if (hasHarshTone(payload.one_liner_roast, language)) return true;
+    if (hasHarshTone(payload.final_verdict, language)) return true;
   }
 
   return false;
