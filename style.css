@@ -1,21 +1,21 @@
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 
 :root {
-  --bg: #0f1115;
-  --bg-soft: #141923;
-  --panel: #171c26;
-  --panel-2: #1c2330;
+  --bg: #0c0d10;
+  --bg-soft: #15171b;
+  --panel: #191c22;
+  --panel-2: #20242d;
   --border: rgba(255, 255, 255, 0.08);
-  --text: #f4f7fb;
-  --muted: #a7b1c2;
-  --accent: #7d96ff;
-  --accent-hover: #90a6ff;
+  --text: #f4f6fb;
+  --muted: #a9b0bc;
+  --accent: #f2a53c;
+  --accent-hover: #ffb655;
   --success-bg: rgba(83, 214, 139, 0.12);
   --success-border: rgba(83, 214, 139, 0.36);
   --success-text: #9af0bf;
-  --danger-bg: rgba(255, 111, 136, 0.14);
-  --danger-border: rgba(255, 111, 136, 0.38);
-  --danger-text: #ffb4c2;
+  --danger-bg: rgba(255, 109, 109, 0.14);
+  --danger-border: rgba(255, 109, 109, 0.34);
+  --danger-text: #ffb3b3;
   --shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
   --radius: 16px;
 }
@@ -36,7 +36,7 @@ body {
   font-family: "Plus Jakarta Sans", "Segoe UI", sans-serif;
   color: var(--text);
   background:
-    radial-gradient(900px 520px at 100% -15%, rgba(125, 150, 255, 0.12), transparent 60%),
+    radial-gradient(980px 560px at 100% -15%, rgba(242, 165, 60, 0.14), transparent 62%),
     linear-gradient(160deg, var(--bg) 0%, var(--bg-soft) 100%);
   overflow: hidden;
 }
@@ -69,7 +69,7 @@ body {
   border-radius: 999px;
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.03);
-  color: #cdd6e6;
+  color: #d9dde5;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -77,9 +77,9 @@ body {
 }
 
 .badge-dark {
-  border-color: rgba(125, 150, 255, 0.36);
-  background: rgba(125, 150, 255, 0.14);
-  color: #cfdaff;
+  border-color: rgba(242, 165, 60, 0.4);
+  background: rgba(242, 165, 60, 0.15);
+  color: #ffd6a1;
 }
 
 .hero h1 {
@@ -141,15 +141,15 @@ body {
 .upload-box {
   display: block;
   margin-top: 10px;
-  border: 1.4px dashed rgba(125, 150, 255, 0.44);
+  border: 1.4px dashed rgba(242, 165, 60, 0.5);
   border-radius: 14px;
-  background: rgba(125, 150, 255, 0.08);
+  background: rgba(242, 165, 60, 0.08);
   cursor: pointer;
   transition: border-color 0.15s ease, transform 0.15s ease;
 }
 
 .upload-box:hover {
-  border-color: rgba(125, 150, 255, 0.7);
+  border-color: rgba(242, 165, 60, 0.82);
   transform: translateY(-1px);
 }
 
@@ -170,8 +170,8 @@ body {
   margin: 0 auto 8px;
   font-size: 26px;
   font-weight: 700;
-  color: #121a2e;
-  background: #a7b9ff;
+  color: #2f2110;
+  background: #ffc578;
 }
 
 .upload-title {
@@ -223,7 +223,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 700;
-  color: #c2cde0;
+  color: #d0d5df;
 }
 
 .control-group select {
@@ -238,8 +238,8 @@ body {
 }
 
 .control-group select:focus {
-  border-color: rgba(125, 150, 255, 0.8);
-  box-shadow: 0 0 0 3px rgba(125, 150, 255, 0.2);
+  border-color: rgba(242, 165, 60, 0.78);
+  box-shadow: 0 0 0 3px rgba(242, 165, 60, 0.2);
 }
 
 .level-description {
@@ -256,7 +256,7 @@ body {
   border-radius: 12px;
   padding: 12px 14px;
   background: var(--accent);
-  color: #10182c;
+  color: #1f160b;
   font-size: 15px;
   font-weight: 700;
   cursor: pointer;
@@ -290,7 +290,7 @@ body {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  border: 3px solid rgba(125, 150, 255, 0.2);
+  border: 3px solid rgba(242, 165, 60, 0.2);
   border-top-color: var(--accent);
   animation: spin 0.75s linear infinite;
   margin: 0 auto 10px;
@@ -344,7 +344,7 @@ body {
 }
 
 .hero-roast {
-  background: linear-gradient(165deg, rgba(125, 150, 255, 0.2), rgba(125, 150, 255, 0.09));
+  background: linear-gradient(165deg, rgba(242, 165, 60, 0.2), rgba(242, 165, 60, 0.08));
 }
 
 .card-label {
@@ -353,7 +353,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #c2cde0;
+  color: #d0d5df;
 }
 
 .big-roast {
