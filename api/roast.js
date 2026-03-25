@@ -294,8 +294,7 @@ function firstSentence(text) {
   if (!source) return source;
 
   const parts = source.split(/(?<=[.!?])\s+/);
-  const short = parts[0] || source;
-  return short.length > 140 ? `${short.slice(0, 137).trim()}...` : short;
+  return parts[0] || source;
 }
 
 function gatherPayloadText(payload) {
@@ -951,7 +950,7 @@ function sanitizePayload(parsed, options) {
       payload.one_liner_roast = timoOneLiner;
     }
 
-    payload.one_liner_roast = shortPunchLine(firstSentence(payload.one_liner_roast), 130);
+    payload.one_liner_roast = firstSentence(payload.one_liner_roast);
 
     if (payload.problems.length < 4) {
       payload.problems = normalizeList(payload.problems, {

@@ -382,6 +382,11 @@ body {
   line-height: 1.2;
 }
 
+.big-roast.size-xxs {
+  font-size: clamp(15px, 1.2vw, 18px);
+  line-height: 1.24;
+}
+
 .result-card ul,
 .result-card ol {
   margin: 0;

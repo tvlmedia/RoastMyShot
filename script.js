@@ -187,9 +187,14 @@ function renderResult(data) {
 }
 
 function adjustOneLinerSize(text) {
-  oneLinerRoast.classList.remove("size-md", "size-sm", "size-xs");
+  oneLinerRoast.classList.remove("size-md", "size-sm", "size-xs", "size-xxs");
 
   const length = (text || "").trim().length;
+  if (length > 320) {
+    oneLinerRoast.classList.add("size-xxs");
+    return;
+  }
+
   if (length > 240) {
     oneLinerRoast.classList.add("size-xs");
     return;
