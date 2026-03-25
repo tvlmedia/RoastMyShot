@@ -178,11 +178,31 @@ function renderResult(data) {
   cinemaScore.textContent = `Cinema Score: ${data.cinema_score}/10`;
   brutalityScore.textContent = `Brutality: ${data.brutality_score}/10`;
   oneLinerRoast.textContent = data.one_liner_roast;
+  adjustOneLinerSize(data.one_liner_roast);
   finalVerdict.textContent = data.final_verdict;
 
   fillList(strengthsList, data.strengths);
   fillList(problemsList, data.problems);
   fillList(fixesList, data.fixes);
+}
+
+function adjustOneLinerSize(text) {
+  oneLinerRoast.classList.remove("size-md", "size-sm", "size-xs");
+
+  const length = (text || "").trim().length;
+  if (length > 240) {
+    oneLinerRoast.classList.add("size-xs");
+    return;
+  }
+
+  if (length > 170) {
+    oneLinerRoast.classList.add("size-sm");
+    return;
+  }
+
+  if (length > 120) {
+    oneLinerRoast.classList.add("size-md");
+  }
 }
 
 function fillList(element, items) {
