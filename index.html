@@ -16,8 +16,7 @@
 
       <h1>Roast My Shot</h1>
       <p class="subtitle">
-        Upload a still. Get brutally honest cinematography feedback.
-        Funny, harsh, and actually useful.
+        Upload a still. Get brutally honest cinematography feedback. Funny, harsh, and actually useful.
       </p>
     </header>
 
@@ -45,10 +44,15 @@
           <div class="control-group">
             <label for="roastLevel">Roast level</label>
             <select id="roastLevel">
+              <option value="mother">Je moeder</option>
               <option value="honest">Eerlijk</option>
               <option value="hard" selected>Hard</option>
               <option value="merciless">Meedogenloos</option>
+              <option value="timo">Timo van Lierop</option>
             </select>
+            <p class="level-description" id="levelDescription">
+              Een scherpe docent met weinig geduld.
+            </p>
           </div>
 
           <div class="control-group">
@@ -75,9 +79,7 @@
       <section class="panel result-panel">
         <div id="emptyState" class="empty-state">
           <h2>No roast yet</h2>
-          <p>
-            Upload een still en druk op <strong>Roast My Shot</strong>.
-          </p>
+          <p>Upload een still en druk op <strong>Roast My Shot</strong>.</p>
         </div>
 
         <div id="loadingState" class="loading-state hidden">
