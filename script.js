@@ -19,6 +19,7 @@ const fixesList = document.getElementById("fixesList");
 const finalVerdict = document.getElementById("finalVerdict");
 
 let uploadedImageBase64 = null;
+const MAX_IMAGE_HEIGHT = 1080;
 
 const levelDescriptions = {
   mother: "Ziet vooral potentie en wil je niet kwetsen.",
@@ -49,18 +50,68 @@ function handleImageUpload(event) {
 
   const reader = new FileReader();
 
-  reader.onload = function (e) {
-    uploadedImageBase64 = e.target.result;
-    previewImage.src = uploadedImageBase64;
-    previewWrap.classList.remove("hidden");
-    roastButton.disabled = false;
+  reader.onload = async function (e) {
+    try {
+      const sourceDataUrl = e.target.result;
+      uploadedImageBase64 = await resizeImageToMaxHeight(sourceDataUrl, MAX_IMAGE_HEIGHT);
+      previewImage.src = uploadedImageBase64;
+      previewWrap.classList.remove("hidden");
+      roastButton.disabled = false;
 
-    emptyState.classList.remove("hidden");
-    loadingState.classList.add("hidden");
-    resultState.classList.add("hidden");
+      emptyState.classList.remove("hidden");
+      loadingState.classList.add("hidden");
+      resultState.classList.add("hidden");
+    } catch (error) {
+      console.error(error);
+      alert("De afbeelding kon niet verwerkt worden.");
+      roastButton.disabled = true;
+    }
   };
 
   reader.readAsDataURL(file);
+}
+
+function resizeImageToMaxHeight(dataUrl, maxHeight) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+
+    image.onload = () => {
+      if (image.height <= maxHeight) {
+        resolve(dataUrl);
+        return;
+      }
+
+      const scale = maxHeight / image.height;
+      const targetWidth = Math.round(image.width * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = targetWidth;
+      canvas.height = maxHeight;
+
+      const context = canvas.getContext("2d");
+      if (!context) {
+        reject(new Error("Canvas context unavailable"));
+        return;
+      }
+
+      context.drawImage(image, 0, 0, targetWidth, maxHeight);
+
+      const mimeMatch = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
+      const sourceMimeType = mimeMatch?.[1] || "image/jpeg";
+      const outputMimeType = ["image/jpeg", "image/png", "image/webp"].includes(sourceMimeType)
+        ? sourceMimeType
+        : "image/jpeg";
+
+      const quality = outputMimeType === "image/jpeg" || outputMimeType === "image/webp" ? 0.9 : undefined;
+      const resizedDataUrl = quality
+        ? canvas.toDataURL(outputMimeType, quality)
+        : canvas.toDataURL(outputMimeType);
+
+      resolve(resizedDataUrl);
+    };
+
+    image.onerror = () => reject(new Error("Image could not be loaded for resize"));
+    image.src = dataUrl;
+  });
 }
 
 async function handleRoast() {
