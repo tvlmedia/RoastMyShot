@@ -61,6 +61,108 @@ function getResponseText(response) {
   return parts.join("\n");
 }
 
+function gatherTextForLanguageCheck(payload) {
+  return [
+    payload.one_liner_roast,
+    payload.final_verdict,
+    ...(Array.isArray(payload.strengths) ? payload.strengths : []),
+    ...(Array.isArray(payload.problems) ? payload.problems : []),
+    ...(Array.isArray(payload.fixes) ? payload.fixes : [])
+  ]
+    .filter((x) => typeof x === "string")
+    .join(" ")
+    .toLowerCase();
+}
+
+function seemsEnglish(text) {
+  if (!text) return false;
+  const englishSignals = [
+    " the ",
+    " and ",
+    " with ",
+    " this ",
+    " that ",
+    " looks ",
+    " lighting ",
+    " background ",
+    " subject ",
+    " shot "
+  ];
+  const normalized = ` ${text.replace(/\s+/g, " ")} `;
+  const hits = englishSignals.filter((signal) => normalized.includes(signal)).length;
+  return hits >= 2;
+}
+
+async function translatePayloadToDutch(payload) {
+  const response = await client.responses.create({
+    model: "gpt-4.1-mini",
+    max_output_tokens: 700,
+    input: [
+      {
+        role: "system",
+        content: [
+          {
+            type: "input_text",
+            text:
+              "Translate all textual fields to natural Dutch. Keep scores unchanged. Return ONLY valid JSON with the exact same keys."
+          }
+        ]
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "input_text",
+            text: JSON.stringify(payload)
+          }
+        ]
+      }
+    ],
+    text: {
+      format: {
+        type: "json_schema",
+        name: "roast_feedback_translated",
+        strict: true,
+        schema: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "one_liner_roast",
+            "cinema_score",
+            "brutality_score",
+            "strengths",
+            "problems",
+            "fixes",
+            "final_verdict"
+          ],
+          properties: {
+            one_liner_roast: { type: "string" },
+            cinema_score: { type: "number", minimum: 0, maximum: 10 },
+            brutality_score: { type: "number", minimum: 0, maximum: 10 },
+            strengths: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 },
+            problems: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 },
+            fixes: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 6 },
+            final_verdict: { type: "string" }
+          }
+        }
+      }
+    }
+  });
+
+  const parsed = parseFirstJsonObject(getResponseText(response));
+  if (!parsed || typeof parsed !== "object") return null;
+
+  return {
+    one_liner_roast: toCleanString(parsed.one_liner_roast, payload.one_liner_roast),
+    cinema_score: clampScore(parsed.cinema_score, payload.cinema_score),
+    brutality_score: clampScore(parsed.brutality_score, payload.brutality_score),
+    strengths: toStringList(parsed.strengths),
+    problems: toStringList(parsed.problems),
+    fixes: toStringList(parsed.fixes),
+    final_verdict: toCleanString(parsed.final_verdict, payload.final_verdict)
+  };
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -86,6 +188,8 @@ module.exports = async function handler(req, res) {
         ? `Analyze this still and return practical cinematography feedback. Roast level: ${roastLevel}. Style goal: ${styleGoal}.`
         : `Analyseer deze still en geef praktische cinematografie-feedback. Roast level: ${roastLevel}. Style goal: ${styleGoal}.`;
 
+    const targetLanguageName = language === "en" ? "English" : "Dutch";
+
     const response = await client.responses.create({
       model: "gpt-4.1-mini",
       max_output_tokens: 800,
@@ -96,7 +200,7 @@ module.exports = async function handler(req, res) {
             {
               type: "input_text",
               text:
-                "Return ONLY valid JSON with keys: one_liner_roast, cinema_score, brutality_score, strengths, problems, fixes, final_verdict. Keep scores between 0 and 10. strengths/problems/fixes must be arrays of short strings."
+                `Return ONLY valid JSON with keys: one_liner_roast, cinema_score, brutality_score, strengths, problems, fixes, final_verdict. Keep scores between 0 and 10. strengths/problems/fixes must be arrays of short strings. All textual fields MUST be written in ${targetLanguageName}.`
             }
           ]
         },
@@ -162,7 +266,7 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const payload = {
+    let payload = {
       one_liner_roast: toCleanString(parsed.one_liner_roast, language === "en" ? "No roast generated." : "Geen roast gegenereerd."),
       cinema_score: clampScore(parsed.cinema_score, 5),
       brutality_score: clampScore(parsed.brutality_score, 5),
@@ -176,6 +280,17 @@ module.exports = async function handler(req, res) {
       return res.status(502).json({
         error: "AI gaf onvolledige JSON terug. Probeer opnieuw."
       });
+    }
+
+    if (language === "nl" && seemsEnglish(gatherTextForLanguageCheck(payload))) {
+      try {
+        const translated = await translatePayloadToDutch(payload);
+        if (translated && translated.strengths.length && translated.problems.length && translated.fixes.length) {
+          payload = translated;
+        }
+      } catch (translationError) {
+        console.error("Dutch translation fallback failed", translationError);
+      }
     }
 
     return res.status(200).json(payload);
