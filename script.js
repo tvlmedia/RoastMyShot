@@ -21,6 +21,8 @@ const finalVerdict = document.getElementById("finalVerdict");
 
 let uploadedImageBase64 = null;
 const MAX_IMAGE_HEIGHT = 1080;
+const OUTPUT_IMAGE_MIME = "image/jpeg";
+const OUTPUT_IMAGE_QUALITY = 0.82;
 
 const levelDescriptions = {
   nl: {
@@ -88,16 +90,13 @@ function resizeImageToMaxHeight(dataUrl, maxHeight) {
     const image = new Image();
 
     image.onload = () => {
-      if (image.height <= maxHeight) {
-        resolve(dataUrl);
-        return;
-      }
-
-      const scale = maxHeight / image.height;
-      const targetWidth = Math.round(image.width * scale);
+      const shouldResize = image.height > maxHeight;
+      const scale = shouldResize ? maxHeight / image.height : 1;
+      const targetHeight = shouldResize ? maxHeight : image.height;
+      const targetWidth = Math.max(1, Math.round(image.width * scale));
       const canvas = document.createElement("canvas");
       canvas.width = targetWidth;
-      canvas.height = maxHeight;
+      canvas.height = targetHeight;
 
       const context = canvas.getContext("2d");
       if (!context) {
@@ -105,18 +104,8 @@ function resizeImageToMaxHeight(dataUrl, maxHeight) {
         return;
       }
 
-      context.drawImage(image, 0, 0, targetWidth, maxHeight);
-
-      const mimeMatch = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
-      const sourceMimeType = mimeMatch?.[1] || "image/jpeg";
-      const outputMimeType = ["image/jpeg", "image/png", "image/webp"].includes(sourceMimeType)
-        ? sourceMimeType
-        : "image/jpeg";
-
-      const quality = outputMimeType === "image/jpeg" || outputMimeType === "image/webp" ? 0.9 : undefined;
-      const resizedDataUrl = quality
-        ? canvas.toDataURL(outputMimeType, quality)
-        : canvas.toDataURL(outputMimeType);
+      context.drawImage(image, 0, 0, targetWidth, targetHeight);
+      const resizedDataUrl = canvas.toDataURL(OUTPUT_IMAGE_MIME, OUTPUT_IMAGE_QUALITY);
 
       resolve(resizedDataUrl);
     };
@@ -145,14 +134,19 @@ async function handleRoast() {
       })
     });
 
+    const rawBody = await response.text();
     let data = null;
     try {
-      data = await response.json();
+      data = rawBody ? JSON.parse(rawBody) : null;
     } catch {
-      throw new Error("Server gaf geen geldige JSON response.");
+      const fallbackMsg = `Server gaf geen geldige JSON response (HTTP ${response.status}).`;
+      throw new Error(fallbackMsg);
     }
 
     if (!response.ok) {
+      if (response.status === 413) {
+        throw new Error("Afbeelding is nog te groot voor de server (HTTP 413). Probeer een kleinere/lager gecomprimeerde afbeelding.");
+      }
       throw new Error(data?.error || "Er ging iets mis met de roast API.");
     }
 
