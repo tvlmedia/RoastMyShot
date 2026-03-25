@@ -178,6 +178,30 @@ function hasHarshTone(text, language) {
   return harshMarkers.some((marker) => source.includes(marker));
 }
 
+function isSoftPoliteLine(text, language) {
+  const source = toCleanString(text).toLowerCase();
+  if (!source) return true;
+
+  const markers =
+    language === "en"
+      ? ["maybe", "perhaps", "could", "might", "consider", "it would help"]
+      : ["misschien", "zou kunnen", "wellicht", "het kan helpen", "probeer eens"];
+
+  return markers.some((marker) => source.includes(marker));
+}
+
+function countComparisonLines(list) {
+  if (!Array.isArray(list)) return 0;
+  return list.filter((item) => hasComparisonTone(item)).length;
+}
+
+function shortPunchLine(text, maxLength) {
+  const source = toCleanString(text);
+  if (!source) return source;
+  const first = source.split(/(?<=[.!?])\s+/)[0] || source;
+  return first.length > maxLength ? `${first.slice(0, maxLength - 3).trim()}...` : first;
+}
+
 function normalizeList(value, options) {
   const { max = 6, min = 0, fallback = [], language = "nl" } = options;
 
@@ -342,6 +366,7 @@ function getLevelInstruction(roastLevel, language) {
         "Niet als filmdocent praten; klink als die vriend op de bank die direct ziet waarom het shot kut werkt.",
         "Gebruik vernederende vergelijkingen: 'alsof', 'lijkt meer op', 'dit doet alsof', 'ziet eruit alsof', 'dit is gewoon ... met zelfvertrouwen'.",
         "One-liner moet de grappigste klap zijn: 1-2 zinnen, eerst grap, daarna pas inhoud.",
+        "Stijlreferentie: iemand die een still direct belachelijk maakt met domme maar rake vergelijkingen, niet netjes, wel precies raak.",
         "Pak studentenfilm-vibes, nep-arthouse, misplaatste bokeh, pseudo-diepte, laf licht, veilige compositie en visueel geklooi extra hard.",
         "Problems moeten kort, bot en grappig-afbrandend zijn, niet netjes technisch geformuleerd.",
         "Fixes mogen direct en lomp zijn.",
@@ -353,6 +378,7 @@ function getLevelInstruction(roastLevel, language) {
         "Do not sound like a film professor; sound like the savage friend on the couch calling out exactly why the still fails.",
         "Use humiliating comparison language: 'as if', 'looks more like', 'this pretends to be', 'looks like', 'this is just ... with confidence'.",
         "One-liner must be the funniest hit: 1-2 sentences, joke first, content second.",
+        "Style reference: immediate ridicule with dumb-but-accurate comparisons, not polished, still precise.",
         "Hit student-film vibes, fake arthouse, misplaced bokeh, pseudo-depth, timid light, safe framing, and visual chaos hard.",
         "Problems must be short, blunt, roasty, and funny instead of polite technical notes.",
         "Fixes can be direct and rough.",
@@ -415,6 +441,12 @@ function buildSystemPrompt(options) {
           language === "en"
             ? "One-liner must be the funniest line in the output. Joke first, then content."
             : "One-liner moet de grappigste zin van de output zijn. Eerst grap, daarna inhoud.",
+          language === "en"
+            ? "Problems must sound like roast lines with visible evidence, not classroom notes."
+            : "Problems moeten klinken als roast-zinnen met zichtbare onderbouwing, niet als klaslokaal-notities.",
+          language === "en"
+            ? "Fixes must be short blunt commands, not polite suggestions."
+            : "Fixes moeten korte botte opdrachten zijn, geen nette suggesties.",
           language === "en"
             ? "Do not be polite. Do not soften impact. Keep sentences short and hard."
             : "Niet netjes formuleren. Niets verzachten. Houd zinnen kort en hard."
@@ -840,8 +872,8 @@ function sanitizePayload(parsed, options) {
       isBlandTechnicalLine(item, language) ? timoExtraProblems[index % timoExtraProblems.length] : item
     );
 
-    const comparisonCount = payload.problems.filter((item) => hasComparisonTone(item)).length;
-    if (comparisonCount < 2) {
+    const comparisonCount = countComparisonLines(payload.problems);
+    if (comparisonCount < 3) {
       payload.problems = normalizeList([...payload.problems, ...timoExtraProblems], {
         language,
         max: 7,
@@ -849,6 +881,19 @@ function sanitizePayload(parsed, options) {
         fallback: timoExtraProblems
       });
     }
+
+    payload.fixes = normalizeList(payload.fixes, {
+      language,
+      max: 5,
+      min: 3,
+      fallback: timoFixesFallback
+    }).map((line, index) => {
+      if (isSoftPoliteLine(line, language) || isBlandTechnicalLine(line, language)) {
+        return timoFixesFallback[index % timoFixesFallback.length];
+      }
+      return shortPunchLine(line, 95);
+    });
+
     if (!payload.final_verdict || !hasComparisonTone(payload.final_verdict)) {
       payload.final_verdict = timoVerdictFallback;
     }
@@ -856,6 +901,8 @@ function sanitizePayload(parsed, options) {
     if (!hasTimoFlavor(payload.final_verdict, language)) {
       payload.final_verdict = timoVerdictFallback;
     }
+
+    payload.final_verdict = shortPunchLine(payload.final_verdict, 145);
   }
 
   if (roastLevel === "mother") {
@@ -901,10 +948,13 @@ function violatesHardConstraints(payload, roastLevel, language) {
     if (payload.brutality_score !== 10) return true;
     if (!Array.isArray(payload.problems) || payload.problems.length < 4) return true;
     if (!Array.isArray(payload.strengths) || payload.strengths.length > 1) return true;
+    if (!Array.isArray(payload.fixes) || payload.fixes.length < 3) return true;
     if (!hasComparisonTone(payload.one_liner_roast)) return true;
     if (!hasComparisonTone(payload.final_verdict)) return true;
     if (!hasTimoFlavor(payload.one_liner_roast, language)) return true;
     if (!hasTimoFlavor(payload.final_verdict, language)) return true;
+    if (countComparisonLines(payload.problems) < 3) return true;
+    if (payload.fixes.some((line) => isSoftPoliteLine(line, language))) return true;
     if (countSentences(payload.one_liner_roast) > 2) return true;
   }
 
