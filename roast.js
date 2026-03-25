@@ -1075,6 +1075,90 @@ function needsTimoOneLinerRetry(payload, language) {
   return false;
 }
 
+function buildEmergencyPayload(language, roastLevel) {
+  const isEnglish = language === "en";
+
+  if (roastLevel === "timo") {
+    return isEnglish
+      ? {
+          one_liner_roast: "This looks like someone called panic a style choice.",
+          cinema_score: 3,
+          brutality_score: 10,
+          strengths: ["At least the subject is still visible."],
+          problems: [
+            "Framing sits in a safe middle, like nobody committed to a decision.",
+            "Lighting feels timid and confused instead of intentional.",
+            "Background adds noise instead of story.",
+            "Focus and depth choices feel messy, not controlled."
+          ],
+          fixes: [
+            "Pick one framing choice and commit to it.",
+            "Shape light with clear subject priority.",
+            "Simplify the background and kill distractions.",
+            "Lock focus and depth around the subject."
+          ],
+          final_verdict: "Technically usable, creatively undercooked and still too safe."
+        }
+      : {
+          one_liner_roast: "Dit ziet eruit alsof iemand paniek als stijlkeuze heeft verkocht.",
+          cinema_score: 3,
+          brutality_score: 10,
+          strengths: ["Je onderwerp staat tenminste nog in beeld."],
+          problems: [
+            "Je kader hangt in veilig middengebied, alsof niemand echt koos.",
+            "Je licht voelt laf en twijfelend in plaats van bewust.",
+            "Je achtergrond voegt ruis toe in plaats van verhaal.",
+            "Je focus- en dieptekeuzes ogen rommelig, niet gecontroleerd."
+          ],
+          fixes: [
+            "Kies een duidelijke kadrering en commit.",
+            "Shape je licht met duidelijke subject-prioriteit.",
+            "Maak je achtergrond rustiger en haal afleiding weg.",
+            "Zet focus en diepte strak rond je onderwerp."
+          ],
+          final_verdict: "Technisch bruikbaar, creatief nog te halfbakken en veilig."
+        };
+  }
+
+  return isEnglish
+    ? {
+        one_liner_roast: "There is a base here, but the shot needs clearer choices.",
+        cinema_score: 5,
+        brutality_score: 4,
+        strengths: [
+          "You already have atmosphere in the frame.",
+          "The scene has a workable visual direction."
+        ],
+        problems: [
+          "Subject priority is not always clear.",
+          "Background and light control can be tighter."
+        ],
+        fixes: [
+          "Refine framing around the subject.",
+          "Add clearer light hierarchy and separation."
+        ],
+        final_verdict: "Solid starting point with room for stronger visual decisions."
+      }
+    : {
+        one_liner_roast: "Er zit een basis in, maar het shot mist nog duidelijke keuzes.",
+        cinema_score: 5,
+        brutality_score: 4,
+        strengths: [
+          "Er zit al sfeer in het frame.",
+          "De scene heeft een bruikbare visuele richting."
+        ],
+        problems: [
+          "De prioriteit van het onderwerp is niet altijd helder.",
+          "Achtergrond- en lichtcontrole kan strakker."
+        ],
+        fixes: [
+          "Maak je kadrering duidelijker rond het onderwerp.",
+          "Geef licht en separation meer hiërarchie."
+        ],
+        final_verdict: "Goede basis, met ruimte voor sterkere visuele keuzes."
+      };
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -1138,9 +1222,8 @@ module.exports = async function handler(req, res) {
     }
 
     if (violatesHardConstraints(payload, roastLevel, language)) {
-      return res.status(502).json({
-        error: language === "en" ? "AI output was invalid. Please try again." : "AI-output was ongeldig. Probeer opnieuw."
-      });
+      console.warn("Returning emergency fallback payload after validation failure", { roastLevel, language });
+      payload = buildEmergencyPayload(language, roastLevel);
     }
 
     return res.status(200).json(payload);
