@@ -4,6 +4,21 @@ const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const VALID_ROAST_LEVELS = new Set(["mother", "honest", "hard", "merciless", "timo"]);
 const VALID_STYLE_GOALS = new Set(["cinematic", "commercial", "raw", "arthouse", "intimate"]);
+const TIMO_BANNED_ONELINERS = {
+  nl: [
+    "Dit is niet filmisch, dit is gewoon kut met zelfvertrouwen.",
+    "Je hebt niet voor stijl gekozen, je hebt gewoon controle verloren.",
+    "Dit doet alsof het arthouse is...",
+    "Dit doet alsof het arthouse is, maar het oogt als een studenten-shot dat controle verloor en dat sfeer noemde.",
+    "Dit ziet eruit alsof iemand per ongeluk op record drukte en daarna heel hard 'sfeer' riep."
+  ],
+  en: [
+    "This is not cinematic, this is just trash with confidence.",
+    "You did not choose a style, you just lost control.",
+    "This pretends to be arthouse...",
+    "This pretends to be cinematic, but it looks like chaos with confidence."
+  ]
+};
 
 function normalizeRoastLevel(value) {
   const level = typeof value === "string" ? value.trim().toLowerCase() : "";
@@ -200,6 +215,59 @@ function shortPunchLine(text, maxLength) {
   if (!source) return source;
   const first = source.split(/(?<=[.!?])\s+/)[0] || source;
   return first.length > maxLength ? `${first.slice(0, maxLength - 3).trim()}...` : first;
+}
+
+function normalizePhrase(text) {
+  return toCleanString(text)
+    .toLowerCase()
+    .replace(/[^a-z0-9\u00c0-\u024f]+/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function similarityScore(a, b) {
+  const na = normalizePhrase(a);
+  const nb = normalizePhrase(b);
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  if (na.includes(nb) || nb.includes(na)) return 0.9;
+
+  const aSet = new Set(na.split(" "));
+  const bSet = new Set(nb.split(" "));
+  const intersection = [...aSet].filter((x) => bSet.has(x)).length;
+  const union = new Set([...aSet, ...bSet]).size;
+  return union ? intersection / union : 0;
+}
+
+function isBannedOrNearRepeat(text, language) {
+  const banned = TIMO_BANNED_ONELINERS[language] || TIMO_BANNED_ONELINERS.nl;
+  return banned.some((line) => similarityScore(text, line) >= 0.72);
+}
+
+function hashString(text) {
+  const source = String(text || "");
+  let hash = 0;
+  for (let i = 0; i < source.length; i += 1) {
+    hash = ((hash << 5) - hash + source.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function pickFromPool(pool, seed) {
+  if (!Array.isArray(pool) || !pool.length) return "";
+  return pool[hashString(seed) % pool.length];
+}
+
+function hasVisualAnchor(text, language) {
+  const source = normalizePhrase(text);
+  if (!source) return false;
+
+  const visualMarkers =
+    language === "en"
+      ? ["focus", "background", "light", "lighting", "frame", "framing", "face", "pose", "mask", "prop", "depth", "sharp", "blur", "expression", "styling"]
+      : ["focus", "achtergrond", "licht", "kader", "kadrering", "gezicht", "pose", "masker", "prop", "diepte", "scherpte", "blur", "expressie", "styling"];
+
+  return visualMarkers.some((marker) => source.includes(marker));
 }
 
 function normalizeList(value, options) {
@@ -442,6 +510,18 @@ function buildSystemPrompt(options) {
             ? "One-liner must be the funniest line in the output. Joke first, then content."
             : "One-liner moet de grappigste zin van de output zijn. Eerst grap, daarna inhoud.",
           language === "en"
+            ? "Internally draft 6-10 one-liner candidates, then output only the single best and most original one."
+            : "Bedenk intern eerst 6-10 one-liner kandidaten en geef daarna alleen de beste en meest originele terug.",
+          language === "en"
+            ? "Example lines are style references only. Never copy or closely paraphrase them."
+            : "Voorbeeldzinnen zijn alleen stijlreferentie. Nooit kopieren of bijna letterlijk parafraseren.",
+          language === "en"
+            ? "Forbidden repeat lines include: 'This is not cinematic, this is just trash with confidence.' and 'You did not choose style, you just lost control.'"
+            : "Verboden herhaalzinnen zijn o.a.: 'Dit is niet filmisch, dit is gewoon kut met zelfvertrouwen.' en 'Je hebt niet voor stijl gekozen, je hebt gewoon controle verloren.'",
+          language === "en"
+            ? "One-liner must be unique for this specific frame and tied to visible details."
+            : "One-liner moet uniek zijn voor dit specifieke frame en gekoppeld aan zichtbare details.",
+          language === "en"
             ? "Problems must sound like roast lines with visible evidence, not classroom notes."
             : "Problems moeten klinken als roast-zinnen met zichtbare onderbouwing, niet als klaslokaal-notities.",
           language === "en"
@@ -515,7 +595,8 @@ function buildUserPrompt(options) {
             "Gebruik onverwachte vernederende vergelijkingen (studentenfilm-vibes, nep-arthouse, misplaatste bokeh, pseudo-diepte, laf licht).",
             "One-liner: 1-2 zinnen, hardste en grappigste punchline van de hele output.",
             "Klink niet als normale technische feedback.",
-            "Gebruik bankvriend-energie: korte dom-grappige klappen die pijnlijk waar zijn."
+            "Gebruik bankvriend-energie: korte dom-grappige klappen die pijnlijk waar zijn.",
+            "One-liner moet uniek zijn voor deze still en mag geen bekende fallback-zin of herhaalde template zijn."
           ]
       : [];
 
@@ -672,7 +753,7 @@ async function translatePayload(payload, targetLanguage) {
 }
 
 function sanitizePayload(parsed, options) {
-  const { language, roastLevel } = options;
+  const { language, roastLevel, imageSignature = "" } = options;
 
   const baseFallback =
     language === "en"
@@ -735,10 +816,21 @@ function sanitizePayload(parsed, options) {
           "Je onderwerp staat tenminste in beeld, dus complete chaos is net vermeden."
         ];
 
-  const timoOneLiner =
+  const timoOneLinerPool =
     language === "en"
-      ? "This pretends to be cinematic, but it looks like chaos with confidence."
-      : "Dit is niet filmisch, dit is gewoon kut met zelfvertrouwen.";
+      ? [
+          "This still looks like somebody hit record by accident and then sold panic as atmosphere.",
+          "This feels like fake arthouse with IKEA-level confidence and zero control.",
+          "This looks like a student short that discovered blur and forgot everything else.",
+          "This frame pretends to be moody, but it reads like visual chaos with attitude."
+        ]
+      : [
+          "Deze still ziet eruit alsof iemand per ongeluk op record drukte en paniek als sfeer verkocht.",
+          "Dit voelt als nep-arthouse met IKEA-zelfvertrouwen en nul controle.",
+          "Dit lijkt op een studentenfilm die blur ontdekte en de rest vergat.",
+          "Dit frame doet alsof het spannend is, maar oogt als visuele chaos met bravoure."
+        ];
+  const timoOneLiner = pickFromPool(timoOneLinerPool, imageSignature);
 
   const timoVerdictFallback =
     language === "en"
@@ -852,12 +944,14 @@ function sanitizePayload(parsed, options) {
     if (
       !payload.one_liner_roast ||
       !hasComparisonTone(payload.one_liner_roast) ||
-      !hasTimoFlavor(payload.one_liner_roast, language)
+      !hasTimoFlavor(payload.one_liner_roast, language) ||
+      !hasVisualAnchor(payload.one_liner_roast, language) ||
+      isBannedOrNearRepeat(payload.one_liner_roast, language)
     ) {
       payload.one_liner_roast = timoOneLiner;
     }
 
-    payload.one_liner_roast = firstSentence(payload.one_liner_roast);
+    payload.one_liner_roast = shortPunchLine(firstSentence(payload.one_liner_roast), 130);
 
     if (payload.problems.length < 4) {
       payload.problems = normalizeList(payload.problems, {
@@ -953,6 +1047,8 @@ function violatesHardConstraints(payload, roastLevel, language) {
     if (!hasComparisonTone(payload.final_verdict)) return true;
     if (!hasTimoFlavor(payload.one_liner_roast, language)) return true;
     if (!hasTimoFlavor(payload.final_verdict, language)) return true;
+    if (!hasVisualAnchor(payload.one_liner_roast, language)) return true;
+    if (isBannedOrNearRepeat(payload.one_liner_roast, language)) return true;
     if (countComparisonLines(payload.problems) < 3) return true;
     if (payload.fixes.some((line) => isSoftPoliteLine(line, language))) return true;
     if (countSentences(payload.one_liner_roast) > 2) return true;
@@ -966,6 +1062,17 @@ function violatesHardConstraints(payload, roastLevel, language) {
     if (hasHarshTone(payload.final_verdict, language)) return true;
   }
 
+  return false;
+}
+
+function needsTimoOneLinerRetry(payload, language) {
+  if (!payload || typeof payload !== "object") return true;
+  const line = toCleanString(payload.one_liner_roast);
+  if (!line) return true;
+  if (isBannedOrNearRepeat(line, language)) return true;
+  if (!hasVisualAnchor(line, language)) return true;
+  if (!hasComparisonTone(line)) return true;
+  if (countSentences(line) > 2) return true;
   return false;
 }
 
@@ -985,6 +1092,7 @@ module.exports = async function handler(req, res) {
     const roastLevel = normalizeRoastLevel(body.roastLevel);
     const styleGoal = normalizeStyleGoal(body.styleGoal);
     const language = body.language === "en" ? "en" : "nl";
+    const imageSignature = `${String(image || "").length}-${String(image || "").slice(0, 64)}-${String(image || "").slice(-64)}`;
 
     if (typeof image !== "string" || !image.startsWith("data:image/")) {
       return res.status(400).json({ error: "Upload een geldige base64 afbeelding." });
@@ -1001,9 +1109,9 @@ module.exports = async function handler(req, res) {
       parsed = await repairJsonWithModel({ rawText, language });
     }
 
-    let payload = sanitizePayload(parsed || {}, { language, roastLevel });
+    let payload = sanitizePayload(parsed || {}, { language, roastLevel, imageSignature });
 
-    if (violatesHardConstraints(payload, roastLevel, language)) {
+    if (violatesHardConstraints(payload, roastLevel, language) || (roastLevel === "timo" && needsTimoOneLinerRetry(payload, language))) {
       const retry = await callRoastModel({
         image,
         language,
@@ -1011,7 +1119,7 @@ module.exports = async function handler(req, res) {
         styleGoal,
         extraConstraint:
           roastLevel === "timo"
-            ? "Previous answer was not funny or destructive enough. Use harder punchlines, sharper comparisons, and roast-first wording tied to visible frame mistakes."
+            ? "Previous answer was too generic or repeated. Create a fresh one-liner with new wording and a new comparison tied to visible details of this exact frame. Do not reuse known fallback phrases."
             : "Your previous answer was too soft or too generic. Make it more specific, more concrete, and obey all roast-level constraints strictly."
       });
 
@@ -1020,13 +1128,13 @@ module.exports = async function handler(req, res) {
         retryParsed = await repairJsonWithModel({ rawText: retry.rawText, language });
       }
 
-      payload = sanitizePayload(retryParsed || payload, { language, roastLevel });
+      payload = sanitizePayload(retryParsed || payload, { language, roastLevel, imageSignature });
     }
 
     if (languageMismatch(payload, language)) {
       const translated = await translatePayload(payload, language);
       if (translated && typeof translated === "object") {
-        payload = sanitizePayload(translated, { language, roastLevel });
+        payload = sanitizePayload(translated, { language, roastLevel, imageSignature });
       }
     }
 
