@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roast My Shot</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="page">
+    <header class="hero">
+      <div class="hero-top">
+        <span class="badge">BETA</span>
+        <span class="badge badge-dark">Brutally Honest Cinematography Feedback</span>
+      </div>
+
+      <h1>Roast My Shot</h1>
+      <p class="subtitle">
+        Upload a still. Get brutally honest cinematography feedback.
+        Funny, harsh, and actually useful.
+      </p>
+    </header>
+
+    <main class="layout">
+      <section class="panel upload-panel">
+        <h2>Upload your still</h2>
+        <p class="panel-text">
+          Start with one frame. Later kun je altijd sequence mode toevoegen.
+        </p>
+
+        <label for="imageInput" class="upload-box" id="uploadBox">
+          <input type="file" id="imageInput" accept="image/*" hidden />
+          <div class="upload-inner">
+            <div class="upload-icon">+</div>
+            <div class="upload-title">Click to upload an image</div>
+            <div class="upload-subtitle">JPG, PNG, WEBP</div>
+          </div>
+        </label>
+
+        <div class="preview-wrap hidden" id="previewWrap">
+          <img id="previewImage" alt="Uploaded preview" />
+        </div>
+
+        <div class="controls">
+          <div class="control-group">
+            <label for="roastLevel">Roast level</label>
+            <select id="roastLevel">
+              <option value="honest">Eerlijk</option>
+              <option value="hard" selected>Hard</option>
+              <option value="merciless">Meedogenloos</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <label for="styleGoal">Make it more...</label>
+            <select id="styleGoal">
+              <option value="cinematic" selected>Filmisch</option>
+              <option value="commercial">Commercial</option>
+              <option value="raw">Rauw</option>
+              <option value="arthouse">Arthouse</option>
+              <option value="intimate">Intiem</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="roastButton" class="roast-button" disabled>
+          Roast My Shot
+        </button>
+
+        <p class="small-note">
+          Deze versie gebruikt nog mock feedback. Daarna hangen we OpenAI eraan.
+        </p>
+      </section>
+
+      <section class="panel result-panel">
+        <div id="emptyState" class="empty-state">
+          <h2>No roast yet</h2>
+          <p>
+            Upload een still en druk op <strong>Roast My Shot</strong>.
+          </p>
+        </div>
+
+        <div id="loadingState" class="loading-state hidden">
+          <div class="loader"></div>
+          <p>The AI is disrespectfully judging your cinematography...</p>
+        </div>
+
+        <div id="resultState" class="hidden">
+          <div class="result-header">
+            <h2>Result</h2>
+            <div class="score-pills">
+              <span class="pill" id="cinemaScore">Cinema Score: -</span>
+              <span class="pill pill-brutal" id="brutalityScore">Brutality: -</span>
+            </div>
+          </div>
+
+          <div class="result-card hero-roast">
+            <div class="card-label">One-liner roast</div>
+            <p id="oneLinerRoast" class="big-roast"></p>
+          </div>
+
+          <div class="result-grid">
+            <div class="result-card">
+              <div class="card-label">What works</div>
+              <ul id="strengthsList"></ul>
+            </div>
+
+            <div class="result-card">
+              <div class="card-label">What’s wrong</div>
+              <ul id="problemsList"></ul>
+            </div>
+          </div>
+
+          <div class="result-card">
+            <div class="card-label">Fix this</div>
+            <ol id="fixesList"></ol>
+          </div>
+
+          <div class="result-card">
+            <div class="card-label">Final verdict</div>
+            <p id="finalVerdict"></p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
