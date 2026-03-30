@@ -338,6 +338,42 @@ function hasTimoHumorHook(text, language) {
   return hooks.some((hook) => source.includes(hook));
 }
 
+function hasTimoAbsurdity(text, language) {
+  const source = toCleanString(text).toLowerCase();
+  if (!source) return false;
+
+  const absurdMarkers =
+    language === "en"
+      ? [
+          "potato",
+          "flashlight",
+          "apologizing",
+          "audition tape",
+          "promo for",
+          "disaster",
+          "trainwreck",
+          "as if",
+          "looks like",
+          "more like",
+          "panic"
+        ]
+      : [
+          "aardappel",
+          "zaklamp",
+          "auditietape",
+          "promo voor",
+          "glijpartij",
+          "alsof",
+          "ziet eruit",
+          "lijkt meer op",
+          "paniek",
+          "chaos",
+          "schuldgevoel"
+        ];
+
+  return absurdMarkers.some((m) => source.includes(m));
+}
+
 function isTooSeriousTimoLine(text, language) {
   const source = toCleanString(text).toLowerCase();
   if (!source) return true;
@@ -390,6 +426,29 @@ function isTooSeriousTimoLine(text, language) {
   const humorHits = dumbHumorMarkers.filter((m) => source.includes(m)).length;
 
   return formalHits >= 2 && humorHits === 0;
+}
+
+function isTooTechnicalTimoLine(text, language) {
+  const source = toCleanString(text).toLowerCase();
+  if (!source) return true;
+
+  const technicalWords =
+    language === "en"
+      ? ["composition", "lighting", "subject", "background", "framing", "exposure", "separation", "depth", "palette"]
+      : ["compositie", "belichting", "onderwerp", "achtergrond", "kadrering", "exposure", "separation", "diepte", "kleurpalet"];
+
+  const techHits = technicalWords.filter((w) => source.includes(w)).length;
+  return techHits >= 3;
+}
+
+function isTooPoliteTimoLine(text, language) {
+  const source = toCleanString(text).toLowerCase();
+  if (!source) return true;
+  const politeMarkers =
+    language === "en"
+      ? ["maybe", "perhaps", "could", "might", "consider", "it would help"]
+      : ["misschien", "wellicht", "zou kunnen", "het kan helpen", "probeer eens", "zou mooi zijn"];
+  return politeMarkers.some((m) => source.includes(m));
 }
 
 function isTooSeriousTimoBullet(text, language) {
@@ -456,6 +515,10 @@ function hasVisualAnchor(text, language) {
           "background",
           "light",
           "lighting",
+          "lens",
+          "camera",
+          "still",
+          "shot",
           "frame",
           "framing",
           "face",
@@ -475,6 +538,10 @@ function hasVisualAnchor(text, language) {
           "focus",
           "achtergrond",
           "licht",
+          "lens",
+          "camera",
+          "still",
+          "shot",
           "kader",
           "kadrering",
           "gezicht",
@@ -628,10 +695,14 @@ function failsOriginalityCheck(line, language, roastLevel) {
   if (countWords(source) < 6) return "too_short";
 
   if (roastLevel === "timo") {
+    if (countWords(source) > 24) return "too_long_for_punchline";
     if (!hasComparisonTone(source)) return "no_comparison_structure";
     if (!hasTimoHumorHook(source, language)) return "missing_humor_hook";
+    if (!hasTimoAbsurdity(source, language)) return "not_funny_enough";
     if (!hasVisualAnchor(source, language)) return "not_visual_specific";
     if (isTooSeriousTimoLine(source, language)) return "too_serious_timo";
+    if (isTooTechnicalTimoLine(source, language)) return "too_technical_timo";
+    if (isTooPoliteTimoLine(source, language)) return "too_polite_timo";
   }
 
   const normalized = normalizePhrase(source);
@@ -696,16 +767,32 @@ function buildRetryConstraint({ language, reason, attempt, historyCount = 0 }) {
     missing_one_liner: language === "en" ? "You returned no usable one-liner." : "Je gaf geen bruikbare one-liner terug.",
     too_short: language === "en" ? "One-liner is too short and generic." : "De one-liner is te kort en te generiek.",
     too_long: language === "en" ? "One-liner is too long; keep max 2 short sentences." : "De one-liner is te lang; max 2 korte zinnen.",
+    too_long_for_punchline:
+      language === "en"
+        ? "One-liner is too long to be funny. Keep it short and punchy."
+        : "De one-liner is te lang voor een grap. Maak hem kort en klappend.",
     no_comparison_structure: language === "en" ? "One-liner misses a sharp comparison structure." : "De one-liner mist een scherpe vergelijkingsstructuur.",
     not_visual_specific: language === "en" ? "One-liner is not tied to visible frame details." : "De one-liner is niet gekoppeld aan zichtbare details.",
     missing_humor_hook:
       language === "en"
         ? "One-liner lacks a dumb comparison hook (looks like/as if/you would think)."
         : "De one-liner mist een lompe vergelijkingshaak (alsof/ziet eruit/lijkt/je zou denken).",
+    not_funny_enough:
+      language === "en"
+        ? "One-liner is not absurd or dumb-funny enough. Make it funnier first, critique second."
+        : "De one-liner is niet absurd/dom-grappig genoeg. Eerst lachen, dan pas kritiek.",
     too_serious_timo:
       language === "en"
         ? "One-liner sounds like serious film feedback. Make it dumber, flatter, rougher, and funnier."
         : "De one-liner klinkt als serieuze filmfeedback. Maak hem dommer, flauwer, lomper en grappiger.",
+    too_technical_timo:
+      language === "en"
+        ? "Too technical. Cut film jargon and use couch-roast humor."
+        : "Te technisch. Minder filmjargon, meer bank-roast humor.",
+    too_polite_timo:
+      language === "en"
+        ? "Too polite. Remove soft phrasing and hit harder."
+        : "Te netjes. Haal zachte formulering weg en klap harder.",
     overused_generic_terms: language === "en" ? "Do not lean on generic arthouse/student/blur templates." : "Leun niet op generieke arthouse/student/blur templates.",
     blocked_or_near_blocked: language === "en" ? "One-liner matches forbidden phrase patterns." : "De one-liner matcht verboden zins-patronen.",
     too_similar_to_recent_history:
@@ -818,6 +905,7 @@ function getLevelInstruction(roastLevel, language) {
         "Niet klinken als filmacademie-feedback, maar als iemand op de bank die hardop domme kutgrappen maakt over de still.",
         "One-liner: max 1-2 zinnen, eerst grap, daarna pas inhoud.",
         "Liever flauw en hard dan slim en netjes.",
+        "Prioriteit: 1) grappigste one-liner 2) debiele vergelijking 3) lompe inkopper 4) harde afzeik 5) pas dan inhoud.",
         "Gebruik korte klappen, inkoppertjes en lompe observaties.",
         "Use voorbeeldzinnen alleen als energie; nooit copy, nooit parafrase.",
         "Bedenk intern eerst 8 verschillende one-liners en kies dan de meest originele.",
@@ -831,6 +919,7 @@ function getLevelInstruction(roastLevel, language) {
         "Do not sound like film-school notes; sound like a couch roast with dumb hard jokes.",
         "One-liner: 1-2 sentences max, joke first, content second.",
         "Prefer blunt and stupid-funny over polished or clever.",
+        "Priority: 1) funniest one-liner 2) dumbest comparison 3) blunt punchline 4) hard roast 5) only then craft detail.",
         "Use short hits and obvious punchlines.",
         "Use example lines as style energy only; never copy, never paraphrase.",
         "Internally draft 8 different one-liners first, then pick the most original.",
@@ -872,10 +961,12 @@ function buildSystemPrompt(options) {
   const timoRules =
     roastLevel === "timo"
       ? [
-          "Timo must be dumb-funny, blunt, and mean.",
+          "Timo must be dumb-funny first, then brutal.",
+          "Do NOT sound like a critic or DOP. Sound like a funny savage friend on a couch.",
           "No neat film language. No teacher tone.",
           "Use black-humor energy only about visible image details.",
           "One-liner must include at least one of: comparison, visual metaphor, dumb insulting observation.",
+          "One-liner must be the funniest line in the whole output.",
           "Internally draft 8 one-liner options; output only the best one.",
           "Do NOT copy/paraphrase style examples or known fallback lines.",
           "If one-liner sounds generic or too serious, regenerate internally.",
@@ -1144,7 +1235,17 @@ function sanitizePayload(parsed, options) {
           "This is one long 'we'll fix it in post' disaster.",
           "You can almost hear the frame apologizing for itself.",
           "This shot looks like a panic attack in color grading form.",
-          "This is visually unemployed and emotionally overacting."
+          "This is visually unemployed and emotionally overacting.",
+          "This frame looks like somebody filmed regret in 4K.",
+          "Even the shadows look embarrassed to be here.",
+          "This has the energy of a fever dream shot with a dead battery.",
+          "This still feels like a breakup text with bad lighting.",
+          "Looks like someone pointed a camera at confusion and hit save.",
+          "This is what happens when vibes replace decisions.",
+          "This looks like a serious project made entirely by accidents.",
+          "This frame has the confidence of a bad idea at 3AM.",
+          "You could screen this as a warning label for fake mood.",
+          "This shot looks like depression with production design."
         ]
       : [
           "Dit ziet eruit alsof iemand per ongeluk een stil uit een slechte auditietape heeft geëxporteerd.",
@@ -1166,7 +1267,17 @@ function sanitizePayload(parsed, options) {
           "Dit frame heeft de energie van 'we fixen het wel in post'.",
           "Dit ziet eruit alsof iedereen op set tegelijk afhaakte.",
           "Dit is gewoon geklooi met zelfvertrouwen.",
-          "Dit beeld heeft stijlambitie en uitvoering van een kapotte zaklamp."
+          "Dit beeld heeft stijlambitie en uitvoering van een kapotte zaklamp.",
+          "Dit frame lijkt alsof iemand spijt in 4K heeft gefilmd.",
+          "Zelfs de schaduwen schamen zich kapot voor dit gedoe.",
+          "Dit heeft de energie van koorts en een lege accu.",
+          "Dit shot voelt als een break-up appje met slechte belichting.",
+          "Dit lijkt op iemand die chaos filmde en dacht: top, exporteren.",
+          "Dit is precies wat je krijgt als vibes beslissingen vervangen.",
+          "Dit oogt als een serieus project gebouwd op ongelukken.",
+          "Dit frame heeft het zelfvertrouwen van een slecht idee om 3 uur 's nachts.",
+          "Dit kun je vertonen als waarschuwingssticker voor nep-sfeer.",
+          "Dit shot ziet eruit als depressie met production design."
         ];
 
   const timoFallback =
