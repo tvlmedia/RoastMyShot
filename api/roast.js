@@ -67,7 +67,9 @@ const TIMO_BLOCKLIST = {
       "Je hebt niet voor stijl gekozen, je hebt gewoon controle verloren.",
       "Dit ziet eruit alsof iemand per ongeluk op record drukte en daarna heel hard 'sfeer' riep.",
       "Dit frame doet alsof het spannend is, maar oogt als visuele chaos met bravoure.",
-      "Dit voelt als nep-arthouse met IKEA-zelfvertrouwen en nul controle."
+      "Dit voelt als nep-arthouse met IKEA-zelfvertrouwen en nul controle.",
+      "Dit ding is gewoon slechte keuzes in vermomming.",
+      "Technisch gezien een still, inhoudelijk vooral een glijpartij."
     ],
     patterns: [
       /studentenfilm.*blur.*vergat/i,
@@ -76,7 +78,9 @@ const TIMO_BLOCKLIST = {
       /niet\s+filmisch/i,
       /controle\s+verloren/i,
       /per\s+ongeluk\s+op\s+record/i,
-      /heel\s+hard\s+['"]?sfeer['"]?\s+riep/i
+      /heel\s+hard\s+['"]?sfeer['"]?\s+riep/i,
+      /slechte\s+keuzes\s+in\s+vermomming/i,
+      /inhoudelijk\s+vooral\s+een\s+glijpartij/i
     ]
   },
   en: {
@@ -85,16 +89,37 @@ const TIMO_BLOCKLIST = {
       "You did not choose a style, you just lost control.",
       "This pretends to be arthouse...",
       "This looks like a student short that discovered blur and forgot everything else.",
-      "This looks like somebody hit record by accident and then sold panic as atmosphere."
+      "This looks like somebody hit record by accident and then sold panic as atmosphere.",
+      "This thing is basically bad decisions in costume.",
+      "Technically a still, creatively a slow-motion faceplant."
     ],
     patterns: [
       /not\s+cinematic.*trash\s+with\s+confidence/i,
       /did\s+not\s+choose\s+(a\s+)?style.*lost\s+control/i,
       /pretends\s+to\s+be\s+arthouse/i,
       /student\s+(short|film).*blur/i,
-      /hit\s+record\s+by\s+accident/i
+      /hit\s+record\s+by\s+accident/i,
+      /bad\s+decisions\s+in\s+costume/i,
+      /slow-?motion\s+faceplant/i
     ]
   }
+};
+
+const TIMO_OVERUSED_FRAGMENTS = {
+  nl: [
+    "slechte keuzes in vermomming",
+    "inhoudelijk vooral een glijpartij",
+    "kapotte zaklamp",
+    "veilig middengebied",
+    "ziet eruit alsof"
+  ],
+  en: [
+    "bad decisions in costume",
+    "slow-motion faceplant",
+    "dying flashlight",
+    "safe middle",
+    "looks like"
+  ]
 };
 
 function normalizeRoastLevel(value) {
@@ -687,6 +712,20 @@ function isTooSimilarToHistory(text, language) {
   });
 }
 
+function hasOverusedFragment(text, language) {
+  const source = normalizePhrase(text);
+  if (!source) return false;
+  const bucket = oneLinerHistory[language] || [];
+  const fragments = TIMO_OVERUSED_FRAGMENTS[language] || TIMO_OVERUSED_FRAGMENTS.nl;
+
+  return fragments.some((fragment) => {
+    const normalizedFragment = normalizePhrase(fragment);
+    if (!normalizedFragment || !source.includes(normalizedFragment)) return false;
+    const hits = bucket.filter((line) => normalizePhrase(line).includes(normalizedFragment)).length;
+    return hits >= 1;
+  });
+}
+
 function failsOriginalityCheck(line, language, roastLevel) {
   const source = toCleanString(line);
   if (!source) return "missing_one_liner";
@@ -712,6 +751,7 @@ function failsOriginalityCheck(line, language, roastLevel) {
 
   if (isBlockedOrNearBlockedOneLiner(source, language)) return "blocked_or_near_blocked";
   if (isTooSimilarToHistory(source, language)) return "too_similar_to_recent_history";
+  if (roastLevel === "timo" && hasOverusedFragment(source, language)) return "overused_fragment";
 
   return "";
 }
@@ -722,16 +762,20 @@ function buildForcedUniqueOneLiner(language, roastLevel, seed = 0) {
   const tonePool =
     language === "en"
       ? [
-          "this thing is basically bad decisions in costume.",
+          "this thing is basically a bad idea with lens flare.",
           "the frame acts deep while doing absolutely nothing right.",
           "the joke is that this image thinks it is serious cinema.",
-          "this is just chaos with confidence."
+          "this is just chaos pretending to have a plan.",
+          "this looks like a rehearsal that refused to improve.",
+          "it feels like somebody filmed confusion on purpose."
         ]
       : [
-          "dit ding is gewoon slechte keuzes in vermomming.",
+          "dit ding is gewoon een slecht idee met lens flare.",
           "het frame doet diep maar bakt er niks van.",
           "de grap is dat dit beeld zichzelf bloedserieus neemt.",
-          "dit is gewoon chaos met zelfvertrouwen."
+          "dit is chaos die doet alsof er een plan was.",
+          "dit lijkt op een repetitie die weigerde beter te worden.",
+          "dit voelt alsof iemand bewust verwarring heeft gefilmd."
         ];
 
   const base = (seed + Date.now()) % 997;
@@ -798,7 +842,11 @@ function buildRetryConstraint({ language, reason, attempt, historyCount = 0 }) {
     too_similar_to_recent_history:
       language === "en"
         ? "One-liner is too similar to recent outputs. Use a different opening and punchline."
-        : "De one-liner lijkt te veel op recente output. Gebruik een andere opening en punchline."
+        : "De one-liner lijkt te veel op recente output. Gebruik een andere opening en punchline.",
+    overused_fragment:
+      language === "en"
+        ? "This punchline fragment is overused in recent outputs. Use completely different wording."
+        : "Dit punchline-fragment is te vaak gebruikt. Gebruik compleet andere formulering."
   };
 
   const openings = ONE_LINER_OPENING_PATTERNS[language] || ONE_LINER_OPENING_PATTERNS.nl;
@@ -1284,7 +1332,13 @@ function sanitizePayload(parsed, options) {
     language === "en"
       ? {
           oneLiner: timoFallbackPool[Math.floor(Math.random() * timoFallbackPool.length)],
-          verdict: "Technically a still, creatively a slow-motion faceplant.",
+          verdict: [
+            "Technically a still, creatively a slow-motion faceplant.",
+            "This wants style, but lands as tired visual nonsense.",
+            "Usable on paper, painful in practice.",
+            "It functions as a frame and fails as an idea.",
+            "Looks filmed, not directed."
+          ][Math.floor(Math.random() * 5)],
           strengths: ["At least the subject exists in frame, so total disaster was avoided by luck."],
           problems: [
             "That framing sits there like nobody checked the monitor with open eyes.",
@@ -1302,7 +1356,13 @@ function sanitizePayload(parsed, options) {
         }
       : {
           oneLiner: timoFallbackPool[Math.floor(Math.random() * timoFallbackPool.length)],
-          verdict: "Technisch gezien een still, inhoudelijk vooral een glijpartij.",
+          verdict: [
+            "Technisch gezien een still, inhoudelijk vooral een glijpartij.",
+            "Dit wil stijl zijn, maar oogt als vermoeide visuele ellende.",
+            "Op papier een shot, in de praktijk een mislukte grap.",
+            "Gefilmd is het wel, geregisseerd totaal niet.",
+            "Dit beeld werkt technisch net genoeg en creatief totaal niet."
+          ][Math.floor(Math.random() * 5)],
           strengths: ["Je onderwerp staat in beeld, dus compleet ontsporen is net niet gelukt."],
           problems: [
             "Dat kader hangt er ook weer bij alsof niemand even normaal heeft gekeken.",
